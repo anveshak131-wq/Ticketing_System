@@ -109,3 +109,16 @@ export async function deleteTrain(number: string): Promise<void> {
   cache = await res.json();
   notify();
 }
+
+export async function deleteTrainStop(trainNumber: string, stopIndex: number): Promise<void> {
+  const res = await fetch(
+    `/api/catalog?train=${encodeURIComponent(trainNumber)}&stopIndex=${stopIndex}`,
+    { method: "DELETE" }
+  );
+  if (!res.ok) {
+    const error = await res.json();
+    throw new Error(error.error || "Failed to delete stop");
+  }
+  cache = await res.json();
+  notify();
+}

@@ -63,6 +63,7 @@ export async function DELETE(request: Request) {
     const { searchParams } = new URL(request.url);
     const stationCode = searchParams.get("station");
     const trainNumber = searchParams.get("train");
+    const stopIndex = searchParams.get("stopIndex");
     const catalog = await getCatalog();
 
     if (stationCode) {
@@ -83,6 +84,32 @@ export async function DELETE(request: Request) {
       return NextResponse.json(catalog);
     }
 
+    if (trainNumber && stopIndex !== null) {
+      const trainIdx = catalog.trains.findIndex((t) => t.number === trainNumber);
+      if (trainIdx < 0) {
+        return NextResponse.json(
+          { error: "Train not found" },
+          { status: 404 }
+        );
+      }
+      const stopIdx = parseInt(stopIndex, 10);
+      if (isNaN(stopIdx) || stopIdx < 0 || stopIdx >= catalog.trains[trainIdx].schedule.length) {
+        return NextResponse.json(
+          { error: "Invalid stop index" },
+          { status: 400 }
+        );
+      }
+      if (catalog.trains[trainIdx].schedule.length <= 2) {
+        return NextResponse.json(
+          { error: "Train must have at least 2 stops (source and destination)" },
+          { status: 409 }
+        );
+      }
+      catalog.trains[trainIdx].schedule.splice(stopIdx, 1);
+      await saveCatalog(catalog);
+      return NextResponse.json(catalog);
+    }
+
     if (trainNumber) {
       catalog.trains = catalog.trains.filter((t) => t.number !== trainNumber);
       await saveCatalog(catalog);
@@ -90,7 +117,7 @@ export async function DELETE(request: Request) {
     }
 
     return NextResponse.json(
-      { error: "Missing station or train param" },
+      { error: "Missing station, train, or stop params" },
       { status: 400 }
     );
   } catch (error) {
