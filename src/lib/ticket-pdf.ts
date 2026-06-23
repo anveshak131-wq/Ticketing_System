@@ -37,19 +37,10 @@ const BERTH_LABELS: Record<Passenger["berthPreference"], string> = {
   none: "No preference",
 };
 
-const CODE39_PATTERNS: Record<string, string> = {
-  "0": "nnnwwnwnn",
-  "1": "wnnwnnnnw",
-  "2": "nnwwnnnnw",
-  "3": "wnwwnnnnn",
-  "4": "nnnwwnnnw",
-  "5": "wnnwwnnnn",
-  "6": "nnwwwnnnn",
-  "7": "nnnwnnwnw",
-  "8": "wnnwnnwnn",
-  "9": "nnwwnnwnn",
-  "*": "nwnnwnwnn",
-};
+const QR_VERSION = 3;
+const QR_SIZE = 17 + QR_VERSION * 4;
+const QR_DATA_CODEWORDS = 55;
+const QR_ECC_CODEWORDS = 15;
 
 type FontKey = "regular" | "bold" | "mono";
 
@@ -229,39 +220,293 @@ function drawLabelValue(
   });
 }
 
-function drawBarcode(ops: string[], pnr: string, x: number, top: number, maxWidth: number, height: number) {
-  const encoded = `*${pnr.replace(/\D/g, "")}*`;
-  const narrow = 1.05;
-  const wide = narrow * 2.9;
-  const gap = narrow;
-  const baseWidth = encoded.split("").reduce((sum, char) => {
-    const pattern = CODE39_PATTERNS[char] ?? "";
-    return (
-      sum +
-      pattern.split("").reduce((charSum, mark) => charSum + (mark === "w" ? wide : narrow), 0) +
-      gap
-    );
-  }, 0);
-  const scale = Math.min(1, maxWidth / baseWidth);
-  let cursor = x;
-
-  ops.push("q", fillColor(COLORS.ink));
-  for (const char of encoded) {
-    const pattern = CODE39_PATTERNS[char];
-    if (!pattern) continue;
-    for (let i = 0; i < pattern.length; i += 1) {
-      const elementWidth = (pattern[i] === "w" ? wide : narrow) * scale;
-      if (i % 2 === 0) {
-        ops.push(
-          `${pdfNumber(cursor)} ${pdfNumber(topToPdfY(top, height))} ${pdfNumber(elementWidth)} ${pdfNumber(
-            height
-          )} re f`
-        );
+function createBitBuffer() {
+  const bits: boolean[] = [];
+  return {
+    bits,
+    push(value: number, length: number) {
+      for (let i = length - 1; i >= 0; i -= 1) {
+        bits.push(((value >>> i) & 1) === 1);
       }
-      cursor += elementWidth;
-    }
-    cursor += gap * scale;
+    },
+  };
+}
+
+function createQrGaloisTables() {
+  const exp = new Array<number>(512).fill(0);
+  const log = new Array<number>(256).fill(0);
+  let value = 1;
+  for (let i = 0; i < 255; i += 1) {
+    exp[i] = value;
+    log[value] = i;
+    value <<= 1;
+    if (value & 0x100) value ^= 0x11d;
   }
+  for (let i = 255; i < exp.length; i += 1) {
+    exp[i] = exp[i - 255];
+  }
+  return { exp, log };
+}
+
+const QR_GF = createQrGaloisTables();
+
+function qrGaloisMultiply(a: number, b: number): number {
+  if (a === 0 || b === 0) return 0;
+  return QR_GF.exp[QR_GF.log[a] + QR_GF.log[b]];
+}
+
+function createQrGeneratorPolynomial(degree: number): number[] {
+  let polynomial = [1];
+  for (let i = 0; i < degree; i += 1) {
+    const next = new Array<number>(polynomial.length + 1).fill(0);
+    polynomial.forEach((coefficient, index) => {
+      next[index] ^= qrGaloisMultiply(coefficient, 1);
+      next[index + 1] ^= qrGaloisMultiply(coefficient, QR_GF.exp[i]);
+    });
+    polynomial = next;
+  }
+  return polynomial;
+}
+
+function createQrErrorCorrection(data: number[]): number[] {
+  const generator = createQrGeneratorPolynomial(QR_ECC_CODEWORDS);
+  const result = new Array<number>(QR_ECC_CODEWORDS).fill(0);
+  data.forEach((codeword) => {
+    const factor = codeword ^ result[0];
+    result.shift();
+    result.push(0);
+    for (let i = 0; i < QR_ECC_CODEWORDS; i += 1) {
+      result[i] ^= qrGaloisMultiply(generator[i + 1], factor);
+    }
+  });
+  return result;
+}
+
+function createQrCodewords(value: string): number[] {
+  const payload = Array.from(new TextEncoder().encode(value));
+  const buffer = createBitBuffer();
+  buffer.push(0b0100, 4);
+  buffer.push(payload.length, 8);
+  payload.forEach((byte) => buffer.push(byte, 8));
+
+  const capacityBits = QR_DATA_CODEWORDS * 8;
+  const terminatorLength = Math.min(4, capacityBits - buffer.bits.length);
+  buffer.push(0, terminatorLength);
+  while (buffer.bits.length % 8 !== 0) buffer.bits.push(false);
+
+  const data: number[] = [];
+  for (let i = 0; i < buffer.bits.length; i += 8) {
+    let byte = 0;
+    for (let j = 0; j < 8; j += 1) {
+      byte = (byte << 1) | (buffer.bits[i + j] ? 1 : 0);
+    }
+    data.push(byte);
+  }
+
+  const padding = [0xec, 0x11];
+  let paddingIndex = 0;
+  while (data.length < QR_DATA_CODEWORDS) {
+    data.push(padding[paddingIndex % padding.length]);
+    paddingIndex += 1;
+  }
+
+  return [...data, ...createQrErrorCorrection(data)];
+}
+
+function createQrMatrix(value: string): boolean[][] {
+  const base = Array.from({ length: QR_SIZE }, () => new Array<boolean>(QR_SIZE).fill(false));
+  const reserved = Array.from({ length: QR_SIZE }, () => new Array<boolean>(QR_SIZE).fill(false));
+
+  const setModule = (x: number, y: number, dark: boolean, reserve = true) => {
+    if (x < 0 || y < 0 || x >= QR_SIZE || y >= QR_SIZE) return;
+    base[y][x] = dark;
+    if (reserve) reserved[y][x] = true;
+  };
+
+  const drawFinder = (left: number, top: number) => {
+    for (let y = -1; y <= 7; y += 1) {
+      for (let x = -1; x <= 7; x += 1) {
+        const xx = left + x;
+        const yy = top + y;
+        const dark =
+          x >= 0 &&
+          x <= 6 &&
+          y >= 0 &&
+          y <= 6 &&
+          (x === 0 || x === 6 || y === 0 || y === 6 || (x >= 2 && x <= 4 && y >= 2 && y <= 4));
+        setModule(xx, yy, dark);
+      }
+    }
+  };
+
+  drawFinder(0, 0);
+  drawFinder(QR_SIZE - 7, 0);
+  drawFinder(0, QR_SIZE - 7);
+
+  for (let i = 8; i < QR_SIZE - 8; i += 1) {
+    const dark = i % 2 === 0;
+    setModule(i, 6, dark);
+    setModule(6, i, dark);
+  }
+
+  for (let y = -2; y <= 2; y += 1) {
+    for (let x = -2; x <= 2; x += 1) {
+      setModule(22 + x, 22 + y, Math.max(Math.abs(x), Math.abs(y)) !== 1);
+    }
+  }
+
+  setModule(8, QR_SIZE - 8, true);
+
+  const reserveFormatAreas = () => {
+    for (let i = 0; i <= 8; i += 1) {
+      if (i !== 6) {
+        setModule(8, i, false);
+        setModule(i, 8, false);
+      }
+    }
+    for (let i = 0; i < 8; i += 1) {
+      setModule(QR_SIZE - 1 - i, 8, false);
+    }
+    for (let i = 8; i < 15; i += 1) {
+      setModule(8, QR_SIZE - 15 + i, false);
+    }
+  };
+  reserveFormatAreas();
+
+  const dataBits = createQrCodewords(value).flatMap((codeword) =>
+    Array.from({ length: 8 }, (_, index) => ((codeword >>> (7 - index)) & 1) === 1)
+  );
+
+  const maskFns = [
+    (x: number, y: number) => (x + y) % 2 === 0,
+    (_x: number, y: number) => y % 2 === 0,
+    (x: number) => x % 3 === 0,
+    (x: number, y: number) => (x + y) % 3 === 0,
+    (x: number, y: number) => (Math.floor(y / 2) + Math.floor(x / 3)) % 2 === 0,
+    (x: number, y: number) => ((x * y) % 2) + ((x * y) % 3) === 0,
+    (x: number, y: number) => (((x * y) % 2) + ((x * y) % 3)) % 2 === 0,
+    (x: number, y: number) => (((x + y) % 2) + ((x * y) % 3)) % 2 === 0,
+  ];
+
+  const drawFormatBits = (matrix: boolean[][], mask: number) => {
+    const data = (1 << 3) | mask;
+    let remainder = data;
+    for (let i = 0; i < 10; i += 1) {
+      remainder = (remainder << 1) ^ (((remainder >>> 9) & 1) ? 0x537 : 0);
+    }
+    const bits = ((data << 10) | remainder) ^ 0x5412;
+    const bit = (index: number) => ((bits >>> index) & 1) === 1;
+
+    for (let i = 0; i <= 5; i += 1) matrix[i][8] = bit(i);
+    matrix[7][8] = bit(6);
+    matrix[8][8] = bit(7);
+    matrix[8][7] = bit(8);
+    for (let i = 9; i < 15; i += 1) matrix[8][14 - i] = bit(i);
+    for (let i = 0; i < 8; i += 1) matrix[8][QR_SIZE - 1 - i] = bit(i);
+    for (let i = 8; i < 15; i += 1) matrix[QR_SIZE - 15 + i][8] = bit(i);
+    matrix[QR_SIZE - 8][8] = true;
+  };
+
+  const penalty = (matrix: boolean[][]) => {
+    let score = 0;
+    const scoreRuns = (line: boolean[]) => {
+      let runColor = line[0];
+      let runLength = 1;
+      for (let i = 1; i < line.length; i += 1) {
+        if (line[i] === runColor) {
+          runLength += 1;
+        } else {
+          if (runLength >= 5) score += 3 + runLength - 5;
+          runColor = line[i];
+          runLength = 1;
+        }
+      }
+      if (runLength >= 5) score += 3 + runLength - 5;
+    };
+
+    for (let y = 0; y < QR_SIZE; y += 1) scoreRuns(matrix[y]);
+    for (let x = 0; x < QR_SIZE; x += 1) scoreRuns(matrix.map((row) => row[x]));
+
+    for (let y = 0; y < QR_SIZE - 1; y += 1) {
+      for (let x = 0; x < QR_SIZE - 1; x += 1) {
+        const color = matrix[y][x];
+        if (matrix[y][x + 1] === color && matrix[y + 1][x] === color && matrix[y + 1][x + 1] === color) {
+          score += 3;
+        }
+      }
+    }
+
+    const pattern = [true, false, true, true, true, false, true, false, false, false, false];
+    const reversePattern = [...pattern].reverse();
+    const matchesPattern = (line: boolean[], start: number, target: boolean[]) =>
+      target.every((value, index) => line[start + index] === value);
+    for (let y = 0; y < QR_SIZE; y += 1) {
+      for (let x = 0; x <= QR_SIZE - pattern.length; x += 1) {
+        if (matchesPattern(matrix[y], x, pattern) || matchesPattern(matrix[y], x, reversePattern)) score += 40;
+      }
+    }
+    for (let x = 0; x < QR_SIZE; x += 1) {
+      const column = matrix.map((row) => row[x]);
+      for (let y = 0; y <= QR_SIZE - pattern.length; y += 1) {
+        if (matchesPattern(column, y, pattern) || matchesPattern(column, y, reversePattern)) score += 40;
+      }
+    }
+
+    const dark = matrix.flat().filter(Boolean).length;
+    score += Math.floor(Math.abs(dark * 20 - QR_SIZE * QR_SIZE * 10) / (QR_SIZE * QR_SIZE)) * 10;
+    return score;
+  };
+
+  let bestMatrix = base;
+  let bestScore = Number.POSITIVE_INFINITY;
+  maskFns.forEach((maskFn, mask) => {
+    const matrix = base.map((row) => [...row]);
+    let bitIndex = 0;
+    let upward = true;
+
+    for (let right = QR_SIZE - 1; right >= 1; right -= 2) {
+      if (right === 6) right -= 1;
+      for (let vertical = 0; vertical < QR_SIZE; vertical += 1) {
+        const y = upward ? QR_SIZE - 1 - vertical : vertical;
+        for (let dx = 0; dx < 2; dx += 1) {
+          const x = right - dx;
+          if (reserved[y][x]) continue;
+          const dark = bitIndex < dataBits.length ? dataBits[bitIndex] : false;
+          matrix[y][x] = maskFn(x, y) ? !dark : dark;
+          bitIndex += 1;
+        }
+      }
+      upward = !upward;
+    }
+
+    drawFormatBits(matrix, mask);
+    const candidateScore = penalty(matrix);
+    if (candidateScore < bestScore) {
+      bestScore = candidateScore;
+      bestMatrix = matrix;
+    }
+  });
+
+  return bestMatrix;
+}
+
+function drawQrCode(ops: string[], value: string, x: number, top: number, size: number) {
+  const modules = createQrMatrix(value);
+  const quietZone = 4;
+  const moduleSize = size / (QR_SIZE + quietZone * 2);
+
+  drawRect(ops, x, top, size, size, { fill: COLORS.white });
+  ops.push("q", fillColor(COLORS.ink));
+  modules.forEach((row, moduleY) => {
+    row.forEach((dark, moduleX) => {
+      if (!dark) return;
+      ops.push(
+        `${pdfNumber(x + (moduleX + quietZone) * moduleSize)} ${pdfNumber(
+          topToPdfY(top + (moduleY + quietZone) * moduleSize, moduleSize)
+        )} ${pdfNumber(moduleSize)} ${pdfNumber(moduleSize)} re f`
+      );
+    });
+  });
   ops.push("Q");
 }
 
@@ -271,6 +516,7 @@ function createContentStream(reservation: Reservation): string {
   const passengerCount = reservation.passengers.length;
   const primaryPassenger = reservation.passengers[0]?.name ?? "Passenger";
   const channel = reservation.bookingChannel === "agent" ? "Counter booking" : "Online booking";
+  const qrPayload = `PNR: ${reservation.pnr}\nSTATUS: ${status.label}`;
 
   drawRect(ops, 0, 0, PAGE_WIDTH, PAGE_HEIGHT, { fill: COLORS.page });
   drawRect(ops, 0, 0, PAGE_WIDTH, 124, { fill: COLORS.navy });
@@ -302,19 +548,25 @@ function createContentStream(reservation: Reservation): string {
     size: 9,
   });
 
-  drawRect(ops, 388, 170, 138, 92, { fill: COLORS.softSlate, stroke: COLORS.border });
-  drawBarcode(ops, reservation.pnr, 404, 194, 106, 34);
-  drawText(ops, "PNR BARCODE", 457, 244, {
+  drawRect(ops, 388, 162, 138, 132, { fill: COLORS.softSlate, stroke: COLORS.border });
+  drawQrCode(ops, qrPayload, 421, 174, 72);
+  drawText(ops, "SCAN QR FOR PNR & STATUS", 457, 260, {
     align: "center",
     color: COLORS.muted,
     font: "bold",
-    size: 7.5,
+    size: 6.8,
   });
-  drawText(ops, reservation.pnr, 457, 256, {
+  drawText(ops, reservation.pnr, 457, 276, {
     align: "center",
     color: COLORS.ink,
     font: "mono",
     size: 9,
+  });
+  drawText(ops, status.label, 457, 286, {
+    align: "center",
+    color: status.color,
+    font: "bold",
+    size: 8,
   });
 
   drawLabelValue(ops, "FROM", reservation.fromName, 56, 226, 145, { valueSize: 14 });
