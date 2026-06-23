@@ -1,5 +1,15 @@
 import type { SeatInventory, TravelClass, BerthType, Train } from "@/types";
 
+// Default seat configurations by class if not explicitly defined
+const DEFAULT_CAPACITY: Record<TravelClass, Partial<Record<BerthType, number>>> = {
+  "1A": { LB: 18 },
+  "2A": { UB: 16, MB: 16, LB: 16 },
+  "3A": { UB: 21, MB: 21, LB: 22 },
+  SL: { UB: 14, MB: 14, LB: 15, SU: 14, SL: 15 },
+  CC: { SEAT: 80 },
+  "2S": { SEAT: 100 },
+};
+
 /**
  * Initialize seat inventory for a train and date
  */
@@ -9,10 +19,15 @@ export function initializeSeatInventory(
   travelDate: string
 ): SeatInventory[] {
   const inventory: SeatInventory[] = [];
-  const capacity = train.seatCapacity?.[travelClass];
+  let capacity = train.seatCapacity?.[travelClass];
+
+  // Use default capacity if not defined
+  if (!capacity) {
+    capacity = DEFAULT_CAPACITY[travelClass];
+  }
 
   if (!capacity) {
-    console.warn(`No seat capacity defined for ${train.number} - ${travelClass}`);
+    console.warn(`No seat capacity available for ${train.number} - ${travelClass}`);
     return [];
   }
 
@@ -72,19 +87,12 @@ export function bookSeats(
   inventory: SeatInventory[],
   passengerCount: number,
   berthPreferences?: Partial<Record<BerthType, number>>
-): { success: boolean; bookedSeats: string[]; message: string } {
+): { success: boolean; bookedSeats: string[]; message: string; isWaitlist: boolean } {
   const totalAvailable = getAvailableSeats(inventory);
-
-  if (totalAvailable < passengerCount) {
-    return {
-      success: false,
-      bookedSeats: [],
-      message: `Only ${totalAvailable} seats available, but ${passengerCount} requested`,
-    };
-  }
 
   const bookedSeats: string[] = [];
   let remainingPassengers = passengerCount;
+  let isWaitlist = false;
 
   // First, try to fulfill berth preferences
   if (berthPreferences) {
@@ -116,18 +124,27 @@ export function bookSeats(
     }
   }
 
+  // If not all passengers could be booked, put them on waitlist
   if (remainingPassengers > 0) {
-    return {
-      success: false,
-      bookedSeats: [],
-      message: "Could not fulfill all bookings",
-    };
+    isWaitlist = true;
+    // Mark remaining passengers as waitlisted
+    for (let i = 0; i < inventory.length && remainingPassengers > 0; i++) {
+      const inv = inventory[i];
+      const toWaitlist = Math.min(remainingPassengers, passengerCount);
+      inv.waitlisted += toWaitlist;
+      remainingPassengers -= toWaitlist;
+    }
   }
 
   return {
     success: true,
     bookedSeats,
-    message: `Successfully booked ${bookedSeats.length} seats`,
+    message: isWaitlist
+      ? bookedSeats.length > 0
+        ? `${bookedSeats.length} seats confirmed, ${passengerCount - bookedSeats.length} on waitlist`
+        : "All passengers added to waitlist"
+      : `Successfully booked ${bookedSeats.length} seats`,
+    isWaitlist,
   };
 }
 

@@ -143,7 +143,7 @@ export function BookingWizard({ mode = "public", agent }: BookingWizardProps) {
       pricingMultiplier: fareQuote.pricingMultiplier,
       isGroupBooking: fareQuote.isGroupBooking,
       groupSize: passengers.length,
-      status: "confirmed",
+      status: allocation.isWaitlist ? "waitlisted" : "confirmed",
       bookingChannel: mode,
       bookedBy: isAgent ? agent?.name : undefined,
       bookedById: isAgent ? agent?.id : undefined,

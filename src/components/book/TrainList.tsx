@@ -110,16 +110,15 @@ export function TrainList({ trains, selectedClass, onSelect, from, to }: TrainLi
                         </p>
                         <p className="text-xs text-muted">{occupancy}% occupied</p>
                       </div>
-                      <Badge variant={seats > 10 ? "success" : seats > 0 ? "warning" : "danger"}>
+                      <Badge variant={seats > 10 ? "success" : seats > 0 ? "warning" : "warning"}>
                         {seats > 0
                           ? `${seats} seats available`
                           : train.waitlistCount > 0
-                            ? `Waitlist ${train.waitlistCount}`
-                            : "Waitlist"}
+                            ? `Waitlist available`
+                            : "Waitlist available"}
                       </Badge>
                       <Button
                         size="sm"
-                        disabled={seats === 0}
                         onClick={() => onSelect(train)}
                       >
                         Select
