@@ -3,6 +3,7 @@
 import type { Reservation } from "@/types";
 
 const listeners = new Set<() => void>();
+const serverSnapshot: Reservation[] = [];
 let cache: Reservation[] = [];
 let loading = false;
 let loaded = false;
@@ -28,7 +29,7 @@ export function getReservationsSnapshot(): Reservation[] {
 }
 
 export function getReservationsServerSnapshot(): Reservation[] {
-  return [];
+  return serverSnapshot;
 }
 
 export function isReservationsLoaded() {

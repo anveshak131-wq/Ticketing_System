@@ -5,6 +5,7 @@ import { PageTransition } from "@/components/motion/PageTransition";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
+import { buttonStyles } from "@/components/ui/button-styles";
 import {
   canModifyReservation,
   getModificationDeadline,
@@ -22,6 +23,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import {
   AlertTriangle,
   Calendar,
+  Download,
   MapPin,
   Search,
   Ticket,
@@ -29,26 +31,19 @@ import {
   XCircle,
 } from "lucide-react";
 import { useSearchParams } from "next/navigation";
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useCallback, useEffect, useState } from "react";
 
 function ReservationsContent() {
   const searchParams = useSearchParams();
-  const [pnrInput, setPnrInput] = useState("");
+  const queryPnr = searchParams.get("pnr") ?? "";
+  const [pnrInput, setPnrInput] = useState(queryPnr);
   const [reservation, setReservation] = useState<Reservation | null>(null);
   const [error, setError] = useState("");
   const [editing, setEditing] = useState(false);
   const [editPassengers, setEditPassengers] = useState<Passenger[]>([]);
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
 
-  useEffect(() => {
-    const pnr = searchParams.get("pnr");
-    if (pnr) {
-      setPnrInput(pnr);
-      lookupPNR(pnr);
-    }
-  }, [searchParams]);
-
-  const lookupPNR = async (raw: string) => {
+  const lookupPNR = useCallback(async (raw: string) => {
     setError("");
     setEditing(false);
     setShowCancelConfirm(false);
@@ -69,7 +64,15 @@ function ReservationsContent() {
 
     setReservation(found);
     setEditPassengers(found.passengers);
-  };
+  }, []);
+
+  useEffect(() => {
+    if (!queryPnr) return;
+    const lookupTimer = window.setTimeout(() => {
+      lookupPNR(queryPnr);
+    }, 0);
+    return () => window.clearTimeout(lookupTimer);
+  }, [lookupPNR, queryPnr]);
 
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -261,23 +264,36 @@ function ReservationsContent() {
                   </div>
                 )}
 
-                {reservation.status !== "cancelled" && !editing && (
+                {!editing && (
                   <div className="mt-6 flex flex-wrap gap-3">
-                    <Button
-                      variant="outline"
-                      disabled={!modifiable}
-                      onClick={() => setEditing(true)}
+                    <a
+                      href={`/api/reservations/${reservation.pnr}/ticket.pdf`}
+                      download={`railconnect-ticket-${reservation.pnr}.pdf`}
+                      className={buttonStyles({ variant: "secondary" })}
                     >
-                      Edit Passengers
-                    </Button>
-                    <Button
-                      variant="danger"
-                      disabled={!modifiable}
-                      onClick={() => setShowCancelConfirm(true)}
-                    >
-                      <XCircle className="h-4 w-4" />
-                      Cancel Reservation
-                    </Button>
+                      <Download className="h-4 w-4" />
+                      Download PDF
+                    </a>
+
+                    {reservation.status !== "cancelled" && (
+                      <>
+                        <Button
+                          variant="outline"
+                          disabled={!modifiable}
+                          onClick={() => setEditing(true)}
+                        >
+                          Edit Passengers
+                        </Button>
+                        <Button
+                          variant="danger"
+                          disabled={!modifiable}
+                          onClick={() => setShowCancelConfirm(true)}
+                        >
+                          <XCircle className="h-4 w-4" />
+                          Cancel Reservation
+                        </Button>
+                      </>
+                    )}
                   </div>
                 )}
 

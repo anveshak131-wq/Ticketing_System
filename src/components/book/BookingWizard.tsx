@@ -7,6 +7,7 @@ import { TrainList } from "@/components/book/TrainList";
 import { PageTransition } from "@/components/motion/PageTransition";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
+import { buttonStyles } from "@/components/ui/button-styles";
 import { getStationLabel, searchTrains } from "@/lib/train-search";
 import { saveReservation } from "@/lib/booking-store";
 import { generatePNR, formatPNR } from "@/lib/pnr";
@@ -14,7 +15,7 @@ import { formatCurrency, formatDate } from "@/lib/utils";
 import type { BookingChannel, Passenger, Reservation, TrainSearchResult, TravelClass } from "@/types";
 import { CLASS_LABELS } from "@/types";
 import { AnimatePresence, motion } from "framer-motion";
-import { CheckCircle2, Copy, Ticket } from "lucide-react";
+import { CheckCircle2, Copy, Download, Ticket } from "lucide-react";
 import Link from "next/link";
 import { useMemo, useState } from "react";
 
@@ -278,6 +279,14 @@ export function BookingWizard({ mode = "public", agent }: BookingWizardProps) {
               </div>
 
               <div className="mt-6 flex flex-wrap justify-center gap-3">
+                <a
+                  href={`/api/reservations/${confirmedPNR}/ticket.pdf`}
+                  download={`railconnect-ticket-${confirmedPNR}.pdf`}
+                  className={buttonStyles({ variant: "secondary" })}
+                >
+                  <Download className="h-4 w-4" />
+                  Download PDF Ticket
+                </a>
                 {isAgent ? (
                   <>
                     <Link href="/agent/dashboard">

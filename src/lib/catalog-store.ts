@@ -9,6 +9,7 @@ export interface Catalog {
 }
 
 const listeners = new Set<() => void>();
+const serverSnapshot: Catalog = { stations: SEED_STATIONS, trains: SEED_TRAINS };
 let cache: Catalog = { stations: SEED_STATIONS, trains: SEED_TRAINS };
 let loading = false;
 let loaded = false;
@@ -27,7 +28,7 @@ export function getCatalogSnapshot(): Catalog {
 }
 
 export function getCatalogServerSnapshot(): Catalog {
-  return { stations: SEED_STATIONS, trains: SEED_TRAINS };
+  return serverSnapshot;
 }
 
 export function isCatalogLoaded() {
