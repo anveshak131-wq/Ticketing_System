@@ -79,7 +79,14 @@ export function TrainManager() {
     setForm((prev) => {
       const schedule = [...prev.schedule];
       schedule[index] = { ...schedule[index], [field]: value };
-      return { ...prev, schedule };
+      const next: Train = { ...prev, schedule };
+
+      if (field === "stationCode" && typeof value === "string") {
+        if (index === 0) next.source = value;
+        if (index === schedule.length - 1) next.destination = value;
+      }
+
+      return next;
     });
   };
 
@@ -99,13 +106,28 @@ export function TrainManager() {
     setError("");
   };
 
+  const extendRoute = () => {
+    if (form.schedule.length >= 20) {
+      setError("Maximum 20 stops allowed");
+      return;
+    }
+    setForm((prev) => ({
+      ...prev,
+      destination: "",
+      schedule: [
+        ...prev.schedule,
+        { stationCode: "", arrival: "00:00", departure: null, day: 1, distance: 0 },
+      ],
+    }));
+    setError("");
+  };
+
   const removeStop = (index: number) => {
     if (form.schedule.length <= 2) {
       setError("Need at least 2 stops (source and destination)");
       return;
     }
-    const stop = form.schedule[index];
-    if (stop.stationCode === form.source || stop.stationCode === form.destination) {
+    if (index === 0 || index === form.schedule.length - 1) {
       setError("Cannot delete source or destination stations");
       return;
     }
@@ -134,17 +156,24 @@ export function TrainManager() {
       return;
     }
 
-    // Validate all intermediate stops have a station selected
-    const hasMissingStation = form.schedule.some(
-      (stop, i) => i !== 0 && i !== form.schedule.length - 1 && !stop.stationCode
-    );
+    if (form.schedule.length < 2) {
+      setError("Train must have at least 2 stops");
+      return;
+    }
+
+    const hasMissingStation = form.schedule.some((stop) => !stop.stationCode);
     if (hasMissingStation) {
-      setError("All intermediate stops must have a station selected");
+      setError("All stops must have a station selected");
       return;
     }
 
     try {
-      await saveTrain({ ...form, number: form.number.trim() });
+      await saveTrain({
+        ...form,
+        number: form.number.trim(),
+        source: form.schedule[0].stationCode,
+        destination: form.schedule[form.schedule.length - 1].stationCode,
+      });
       setShowForm(false);
       setEditingNumber(null);
       setError("");
@@ -206,6 +235,7 @@ export function TrainManager() {
                 }} 
                 className="w-full rounded-xl border border-border bg-card px-4 py-2.5"
               >
+                <option value="" disabled>Select destination...</option>
                 {stations.map((s) => <option key={s.code} value={s.code}>{s.name} ({s.code})</option>)}
               </select>
             </div>
@@ -246,15 +276,21 @@ export function TrainManager() {
           </div>
 
           <div>
-            <div className="mb-4 flex items-center justify-between">
+            <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
               <div>
                 <p className="text-sm font-medium">Schedule Stops</p>
                 <p className="text-xs text-muted mt-1">{form.schedule.length} stops configured</p>
               </div>
-              <Button size="sm" variant="outline" onClick={addStop}>
-                <Plus className="h-4 w-4" />
-                Add Stop
-              </Button>
+              <div className="flex flex-wrap gap-2">
+                <Button size="sm" variant="outline" onClick={addStop}>
+                  <Plus className="h-4 w-4" />
+                  Add Stop
+                </Button>
+                <Button size="sm" variant="outline" onClick={extendRoute}>
+                  <Plus className="h-4 w-4" />
+                  Extend Route
+                </Button>
+              </div>
             </div>
 
             {/* Column Headers */}
@@ -300,8 +336,7 @@ export function TrainManager() {
                         <select
                           value={stop.stationCode}
                           onChange={(e) => updateStop(index, "stationCode", e.target.value)}
-                          disabled={isSource || isDestination}
-                          className="w-full rounded-lg border border-border bg-card px-3 py-2 text-sm font-medium disabled:opacity-60"
+                          className="w-full rounded-lg border border-border bg-card px-3 py-2 text-sm font-medium"
                         >
                           <option value="" disabled>Select station...</option>
                           {stations.map((s) => (
