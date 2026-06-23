@@ -18,10 +18,12 @@ import { useState } from "react";
 export function RevenueAnalyticsDashboard() {
   const reservations = useReservations();
   const [period, setPeriod] = useState<"week" | "month" | "custom">("month");
-  const [startDate, setStartDate] = useState(
-    new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split("T")[0]
-  );
-  const [endDate, setEndDate] = useState(new Date().toISOString().split("T")[0]);
+  const [startDate, setStartDate] = useState(() => {
+    const date = new Date();
+    date.setDate(date.getDate() - 30);
+    return date.toISOString().split("T")[0];
+  });
+  const [endDate, setEndDate] = useState(() => new Date().toISOString().split("T")[0]);
   const [filterTrain, setFilterTrain] = useState("");
   const [filterAgent, setFilterAgent] = useState("");
 

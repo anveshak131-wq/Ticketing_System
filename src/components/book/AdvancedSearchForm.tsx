@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { useCatalog } from "@/hooks/use-catalog";
 import type { TrainSearchParams, TrainSearchResult } from "@/types";
+import type { TravelClass } from "@/types";
 import { motion } from "framer-motion";
 import { Search, X } from "lucide-react";
 import { useState } from "react";
@@ -26,6 +27,7 @@ export function AdvancedSearchForm({ onSearch }: AdvancedSearchProps) {
     trainFlexibility: false,
   });
   const [showAdvanced, setShowAdvanced] = useState(false);
+  const selectedClass = params.travelClass ?? "3A";
 
   const handleSearch = () => {
     if (!params.fromStation || !params.toStation || !params.travelDate) {
@@ -39,22 +41,24 @@ export function AdvancedSearchForm({ onSearch }: AdvancedSearchProps) {
         (train) =>
           train.source === params.fromStation &&
           train.destination === params.toStation &&
-          train.classes.includes(params.travelClass || "3A")
+          train.classes.includes(selectedClass)
       )
       .map((train) => {
-        const baseFare = train.baseFares[params.travelClass || "3A"] || 0;
+        const baseFare = train.baseFares[selectedClass] || 0;
         const availableSeats = 50; // Mock value - would calculate from seat inventory
         return {
           ...train,
-          availableSeats: { [params.travelClass || "3A"]: availableSeats },
-          fare: { [params.travelClass || "3A"]: baseFare },
-          dynamicPrice: { [params.travelClass || "3A"]: baseFare },
+          availableSeats: { [selectedClass]: availableSeats },
+          availableBerths: {},
+          fare: { [selectedClass]: baseFare },
+          dynamicPrice: { [selectedClass]: baseFare },
           occupancyRate: 45,
+          occupancyRateByClass: { [selectedClass]: 45 },
           waitlistCount: 0,
         } as TrainSearchResult;
       })
       .filter((train) => {
-        const price = train.dynamicPrice[params.travelClass || "3A"] || 0;
+        const price = train.dynamicPrice[selectedClass] || 0;
         return (
           price >= (params.priceFrom || 0) &&
           price <= (params.priceTo || 10000)
@@ -139,15 +143,15 @@ export function AdvancedSearchForm({ onSearch }: AdvancedSearchProps) {
           {/* Class */}
           <div>
             <label className="mb-1.5 block text-sm font-medium">Class</label>
-            <select
-              value={params.travelClass}
-              onChange={(e) =>
-                setParams({
-                  ...params,
-                  travelClass: e.target.value as any,
-                })
-              }
-              className="w-full rounded-xl border border-border bg-card px-3 py-2.5 text-sm"
+                <select
+                  value={params.travelClass}
+                  onChange={(e) =>
+                    setParams({
+                      ...params,
+                      travelClass: e.target.value as TravelClass,
+                    })
+                  }
+                  className="w-full rounded-xl border border-border bg-card px-3 py-2.5 text-sm"
             >
               <option value="SL">Sleeper (SL)</option>
               <option value="3A">AC 3 Tier (3A)</option>
@@ -287,6 +291,7 @@ export function AdvancedSearchForm({ onSearch }: AdvancedSearchProps) {
               <label className="mb-2 block text-sm font-medium">Quick Sets</label>
               <div className="space-y-1">
                 <button
+                  type="button"
                   onClick={() =>
                     setParams({
                       ...params,
@@ -299,6 +304,7 @@ export function AdvancedSearchForm({ onSearch }: AdvancedSearchProps) {
                   Budget (&lt;₹1000)
                 </button>
                 <button
+                  type="button"
                   onClick={() =>
                     setParams({
                       ...params,
@@ -311,6 +317,7 @@ export function AdvancedSearchForm({ onSearch }: AdvancedSearchProps) {
                   Mid (₹1-3K)
                 </button>
                 <button
+                  type="button"
                   onClick={() =>
                     setParams({
                       ...params,

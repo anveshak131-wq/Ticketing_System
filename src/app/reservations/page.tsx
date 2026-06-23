@@ -18,7 +18,7 @@ import {
 import { formatPNR, isValidPNR } from "@/lib/pnr";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import type { Passenger, Reservation } from "@/types";
-import { CLASS_LABELS } from "@/types";
+import { BERTH_PREFERENCE_LABELS, CLASS_LABELS } from "@/types";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   AlertTriangle,
@@ -221,6 +221,16 @@ function ReservationsContent() {
                     <p className="text-xl font-bold text-primary">
                       {formatCurrency(reservation.totalFare)}
                     </p>
+                    {reservation.groupSize ? (
+                      <p className="text-xs text-muted">
+                        {reservation.groupSize} passenger
+                        {reservation.groupSize !== 1 ? "s" : ""} ·{" "}
+                        {formatCurrency(
+                          Math.round(reservation.totalFare / reservation.groupSize)
+                        )}{" "}
+                        each
+                      </p>
+                    ) : null}
                   </div>
                 </div>
 
@@ -234,7 +244,9 @@ function ReservationsContent() {
                           className="rounded-lg bg-foreground/5 px-3 py-2 text-sm"
                         >
                           {i + 1}. {p.name} · {p.age} yrs · {p.gender}
-                          {p.berthPreference !== "none" && ` · ${p.berthPreference}`}
+                          {reservation.seats?.[i] && ` · Seat ${reservation.seats[i]}`}
+                          {" · "}
+                          {BERTH_PREFERENCE_LABELS[p.berthPreference]}
                         </li>
                       ))}
                     </ul>

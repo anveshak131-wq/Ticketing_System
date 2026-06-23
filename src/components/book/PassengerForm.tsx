@@ -82,9 +82,9 @@ export function PassengerForm({
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <p className="text-sm font-semibold">Passenger Details</p>
-              <p className="mt-1 text-xs text-muted">
-                Add passenger information and choose preferred seat or berth.
-              </p>
+              {travelClass ? (
+                <p className="mt-1 text-xs text-muted">Class: {travelClass}</p>
+              ) : null}
             </div>
             {farePerPassenger ? (
               <div className="rounded-xl bg-primary/10 px-3 py-2 text-sm font-semibold text-primary">

@@ -153,13 +153,35 @@ export function TrainManager() {
             <Input label="Type" value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })} />
             <div>
               <label className="mb-1.5 block text-sm font-medium">Source</label>
-              <select value={form.source} onChange={(e) => setForm({ ...form, source: e.target.value })} className="w-full rounded-xl border border-border bg-card px-4 py-2.5">
+              <select 
+                value={form.source} 
+                onChange={(e) => {
+                  const newSource = e.target.value;
+                  setForm((prev) => {
+                    const schedule = [...prev.schedule];
+                    schedule[0] = { ...schedule[0], stationCode: newSource };
+                    return { ...prev, source: newSource, schedule };
+                  });
+                }} 
+                className="w-full rounded-xl border border-border bg-card px-4 py-2.5"
+              >
                 {stations.map((s) => <option key={s.code} value={s.code}>{s.name} ({s.code})</option>)}
               </select>
             </div>
             <div>
               <label className="mb-1.5 block text-sm font-medium">Destination</label>
-              <select value={form.destination} onChange={(e) => setForm({ ...form, destination: e.target.value })} className="w-full rounded-xl border border-border bg-card px-4 py-2.5">
+              <select 
+                value={form.destination} 
+                onChange={(e) => {
+                  const newDest = e.target.value;
+                  setForm((prev) => {
+                    const schedule = [...prev.schedule];
+                    schedule[schedule.length - 1] = { ...schedule[schedule.length - 1], stationCode: newDest };
+                    return { ...prev, destination: newDest, schedule };
+                  });
+                }} 
+                className="w-full rounded-xl border border-border bg-card px-4 py-2.5"
+              >
                 {stations.map((s) => <option key={s.code} value={s.code}>{s.name} ({s.code})</option>)}
               </select>
             </div>

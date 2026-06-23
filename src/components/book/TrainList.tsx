@@ -5,9 +5,9 @@ import { Button } from "@/components/ui/Button";
 import { getStationLabel } from "@/lib/train-search";
 import { formatCurrency } from "@/lib/utils";
 import type { TrainSearchResult, TravelClass } from "@/types";
-import { CLASS_LABELS } from "@/types";
+import { BERTH_LABELS, CLASS_LABELS } from "@/types";
 import { AnimatePresence, motion } from "framer-motion";
-import { ArrowRight, Clock, Train } from "lucide-react";
+import { ArrowRight, Armchair, Clock, Train } from "lucide-react";
 
 interface TrainListProps {
   trains: TrainSearchResult[];
@@ -43,7 +43,11 @@ export function TrainList({ trains, selectedClass, onSelect, from, to }: TrainLi
       <AnimatePresence>
         {trains.map((train, i) => {
           const seats = train.availableSeats[selectedClass] ?? 0;
-          const fare = train.fare[selectedClass] ?? 0;
+          const baseFare = train.fare[selectedClass] ?? 0;
+          const fare = train.dynamicPrice[selectedClass] ?? baseFare;
+          const occupancy = train.occupancyRateByClass[selectedClass] ?? 0;
+          const berthAvailability = train.availableBerths[selectedClass] ?? {};
+          const showDynamicFare = fare !== baseFare;
           const hasClass = train.classes.includes(selectedClass);
 
           return (
@@ -77,17 +81,41 @@ export function TrainList({ trains, selectedClass, onSelect, from, to }: TrainLi
                       <p className="text-xs text-muted">{getStationLabel(to)}</p>
                     </div>
                   </div>
+
+                  {hasClass && (
+                    <div className="mt-4 flex flex-wrap gap-2">
+                      {Object.entries(berthAvailability).map(([berthType, count]) => (
+                        <Badge key={berthType} variant="default" className="gap-1">
+                          <Armchair className="h-3 w-3" />
+                          {BERTH_LABELS[berthType as keyof typeof BERTH_LABELS]}: {count}
+                        </Badge>
+                      ))}
+                    </div>
+                  )}
                 </div>
 
                 <div className="flex flex-col items-start gap-2 lg:items-end">
                   {hasClass ? (
                     <>
-                      <p className="text-2xl font-bold text-primary">
-                        {formatCurrency(fare)}
-                      </p>
-                      <p className="text-xs text-muted">{CLASS_LABELS[selectedClass]}</p>
+                      <div className="lg:text-right">
+                        <p className="text-xs text-muted">Fare per passenger</p>
+                        <p className="text-2xl font-bold text-primary">
+                          {formatCurrency(fare)}
+                        </p>
+                        <p className="text-xs text-muted">
+                          {CLASS_LABELS[selectedClass]}
+                          {showDynamicFare
+                            ? ` · base ${formatCurrency(baseFare)}`
+                            : ""}
+                        </p>
+                        <p className="text-xs text-muted">{occupancy}% occupied</p>
+                      </div>
                       <Badge variant={seats > 10 ? "success" : seats > 0 ? "warning" : "danger"}>
-                        {seats > 0 ? `${seats} seats available` : "Waitlist"}
+                        {seats > 0
+                          ? `${seats} seats available`
+                          : train.waitlistCount > 0
+                            ? `Waitlist ${train.waitlistCount}`
+                            : "Waitlist"}
                       </Badge>
                       <Button
                         size="sm"

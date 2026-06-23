@@ -627,7 +627,11 @@ function createContentStream(reservation: Reservation): string {
   drawText(ops, "NAME", col.name, tableTop + 18, { color: COLORS.muted, font: "bold", size: 8 });
   drawText(ops, "AGE", col.age, tableTop + 18, { color: COLORS.muted, font: "bold", size: 8 });
   drawText(ops, "GENDER", col.gender, tableTop + 18, { color: COLORS.muted, font: "bold", size: 8 });
-  drawText(ops, "BERTH", col.berth, tableTop + 18, { color: COLORS.muted, font: "bold", size: 8 });
+  drawText(ops, "SEAT / BERTH", col.berth, tableTop + 18, {
+    color: COLORS.muted,
+    font: "bold",
+    size: 8,
+  });
 
   reservation.passengers.slice(0, 6).forEach((passenger, index) => {
     const rowTop = tableTop + 28 + index * 30;
@@ -640,7 +644,11 @@ function createContentStream(reservation: Reservation): string {
     drawText(ops, truncate(passenger.name, 30), col.name, rowTop + 20, { font: "bold", size: 9 });
     drawText(ops, String(passenger.age), col.age, rowTop + 20, { size: 9 });
     drawText(ops, passenger.gender.toUpperCase(), col.gender, rowTop + 20, { size: 9 });
-    drawText(ops, BERTH_LABELS[passenger.berthPreference], col.berth, rowTop + 20, { size: 9 });
+    const seat = reservation.seats?.[index];
+    const berthText = seat
+      ? `${seat} / ${BERTH_LABELS[passenger.berthPreference]}`
+      : BERTH_LABELS[passenger.berthPreference];
+    drawText(ops, truncate(berthText, 18), col.berth, rowTop + 20, { size: 9 });
   });
 
   drawRect(ops, 32, 654, 251, 98, { fill: COLORS.panel, stroke: COLORS.border });
