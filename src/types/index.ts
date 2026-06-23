@@ -1,8 +1,12 @@
 export type TravelClass = "SL" | "3A" | "2A" | "1A" | "CC" | "2S";
 
-export type ReservationStatus = "confirmed" | "cancelled" | "modified";
+export type ReservationStatus = "confirmed" | "cancelled" | "modified" | "waitlisted";
 
 export type BerthPreference = "LB" | "MB" | "UB" | "SL" | "SU" | "none";
+
+export type BerthType = "UB" | "MB" | "LB" | "SU" | "SL" | "SEAT";
+
+export type PricingRuleType = "demand" | "occupancy" | "date_range" | "promotional";
 
 export interface Station {
   code: string;
@@ -19,6 +23,31 @@ export interface TrainScheduleStop {
   distance: number;
 }
 
+export interface SeatInventory {
+  trainNumber: string;
+  travelDate: string;
+  class: TravelClass;
+  berthType: BerthType;
+  total: number;
+  booked: number;
+  blocked: number;
+  waitlisted: number;
+}
+
+export interface PricingRule {
+  id: string;
+  trainNumber?: string;
+  routeFrom?: string;
+  routeTo?: string;
+  class: TravelClass;
+  type: PricingRuleType;
+  startDate: string;
+  endDate: string;
+  multiplier: number; // 1.0 = base fare, 1.5 = 50% increase
+  description: string;
+  isActive: boolean;
+}
+
 export interface Train {
   number: string;
   name: string;
@@ -32,6 +61,10 @@ export interface Train {
   classes: TravelClass[];
   schedule: TrainScheduleStop[];
   baseFares: Partial<Record<TravelClass, number>>;
+  seatCapacity: Partial<Record<TravelClass, Partial<Record<BerthType, number>>>>; // New: seat layout
+  minGroupSize?: number;
+  maxGroupSize?: number;
+  groupDiscount?: number; // percentage discount for groups
 }
 
 export interface Passenger {
@@ -77,6 +110,10 @@ export interface Reservation {
   travelClass: TravelClass;
   passengers: Passenger[];
   totalFare: number;
+  baseFare: number;
+  pricingMultiplier: number; // For dynamic pricing tracking
+  isGroupBooking: boolean;
+  groupSize: number;
   status: ReservationStatus;
   bookingChannel: BookingChannel;
   bookedBy?: string;
@@ -84,11 +121,55 @@ export interface Reservation {
   agentCode?: string;
   bookedAt: string;
   updatedAt: string;
+  seats?: string[]; // Seat numbers
+}
+
+export interface WaitlistEntry {
+  id: string;
+  trainNumber: string;
+  travelDate: string;
+  class: TravelClass;
+  passengers: Passenger[];
+  totalFare: number;
+  addedAt: string;
+  confirmationTime?: string;
+  bookedPnr?: string;
+}
+
+export interface TrainSearchParams {
+  fromStation: string;
+  toStation: string;
+  travelDate: string;
+  travelClass?: TravelClass;
+  passengerCount?: number;
+  priceFrom?: number;
+  priceTo?: number;
+  dateFlexibility?: number; // days flexible before/after
+  trainFlexibility?: boolean; // allow alternative trains
 }
 
 export interface TrainSearchResult extends Train {
   availableSeats: Partial<Record<TravelClass, number>>;
   fare: Partial<Record<TravelClass, number>>;
+  dynamicPrice: Partial<Record<TravelClass, number>>; // With pricing rules applied
+  occupancyRate: number; // 0-100
+  waitlistCount: number;
+}
+
+export interface RevenueReport {
+  trainNumber?: string;
+  routeFrom?: string;
+  routeTo?: string;
+  agentCode?: string;
+  period: string;
+  totalReservations: number;
+  totalRevenue: number;
+  totalCancellations: number;
+  refundAmount: number;
+  averageFare: number;
+  occupancyRate: number;
+  revenueByClass: Record<TravelClass, number>;
+  revenueByAgent?: Record<string, number>;
 }
 
 export const CLASS_LABELS: Record<TravelClass, string> = {
@@ -98,4 +179,13 @@ export const CLASS_LABELS: Record<TravelClass, string> = {
   "1A": "AC First (1A)",
   CC: "Chair Car (CC)",
   "2S": "Second Sitting (2S)",
+};
+
+export const BERTH_LABELS: Record<BerthType, string> = {
+  UB: "Upper Berth",
+  MB: "Middle Berth",
+  LB: "Lower Berth",
+  SU: "Side Upper",
+  SL: "Side Lower",
+  SEAT: "Seat",
 };

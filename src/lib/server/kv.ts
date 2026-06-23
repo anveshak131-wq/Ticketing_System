@@ -9,6 +9,9 @@ export const KV_KEYS = {
   catalog: "catalog",
   reservations: "reservations",
   users: "users",
+  seatInventory: "seat_inventory",
+  waitlist: "waitlist",
+  pricingRules: "pricing_rules",
 } as const;
 
 export const SESSION_PREFIX = "session:";

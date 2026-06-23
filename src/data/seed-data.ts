@@ -28,6 +28,14 @@ export const SEED_TRAINS: Train[] = [
     runsOn: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
     classes: ["1A", "2A", "3A"],
     baseFares: { "1A": 4850, "2A": 2890, "3A": 1980 },
+    seatCapacity: {
+      "1A": { LB: 18 },
+      "2A": { UB: 16, MB: 16, LB: 16 },
+      "3A": { UB: 21, MB: 21, LB: 22 },
+    },
+    minGroupSize: 5,
+    maxGroupSize: 50,
+    groupDiscount: 10,
     schedule: [
       { stationCode: "NDLS", arrival: null, departure: "16:55", day: 1, distance: 0 },
       { stationCode: "JP", arrival: "21:40", departure: "21:50", day: 1, distance: 303 },
@@ -47,6 +55,14 @@ export const SEED_TRAINS: Train[] = [
     runsOn: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat"],
     classes: ["1A", "2A", "3A"],
     baseFares: { "1A": 5120, "2A": 3050, "3A": 2150 },
+    seatCapacity: {
+      "1A": { LB: 18 },
+      "2A": { UB: 16, MB: 16, LB: 16 },
+      "3A": { UB: 21, MB: 21, LB: 22 },
+    },
+    minGroupSize: 5,
+    maxGroupSize: 50,
+    groupDiscount: 10,
     schedule: [
       { stationCode: "NDLS", arrival: null, departure: "16:55", day: 1, distance: 0 },
       { stationCode: "PNBE", arrival: "04:30", departure: "04:40", day: 2, distance: 997 },
@@ -65,6 +81,15 @@ export const SEED_TRAINS: Train[] = [
     runsOn: ["Mon", "Wed", "Fri"],
     classes: ["SL", "3A", "2A", "1A"],
     baseFares: { SL: 720, "3A": 1890, "2A": 2680, "1A": 4520 },
+    seatCapacity: {
+      SL: { UB: 14, MB: 14, LB: 15, SU: 14, SL: 15 },
+      "3A": { UB: 21, MB: 21, LB: 22 },
+      "2A": { UB: 16, MB: 16, LB: 16 },
+      "1A": { LB: 18 },
+    },
+    minGroupSize: 5,
+    maxGroupSize: 60,
+    groupDiscount: 12,
     schedule: [
       { stationCode: "NDLS", arrival: null, departure: "20:30", day: 1, distance: 0 },
       { stationCode: "LKO", arrival: "04:15", departure: "04:25", day: 2, distance: 497 },
@@ -83,6 +108,15 @@ export const SEED_TRAINS: Train[] = [
     runsOn: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
     classes: ["SL", "3A", "2A", "1A"],
     baseFares: { SL: 680, "3A": 1750, "2A": 2520, "1A": 4280 },
+    seatCapacity: {
+      SL: { UB: 14, MB: 14, LB: 15, SU: 14, SL: 15 },
+      "3A": { UB: 21, MB: 21, LB: 22 },
+      "2A": { UB: 16, MB: 16, LB: 16 },
+      "1A": { LB: 18 },
+    },
+    minGroupSize: 5,
+    maxGroupSize: 60,
+    groupDiscount: 15,
     schedule: [
       { stationCode: "NDLS", arrival: null, departure: "22:30", day: 1, distance: 0 },
       { stationCode: "MAS", arrival: "04:10", departure: null, day: 3, distance: 2180 },
@@ -100,6 +134,13 @@ export const SEED_TRAINS: Train[] = [
     runsOn: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
     classes: ["CC", "2S"],
     baseFares: { CC: 920, "2S": 540 },
+    seatCapacity: {
+      CC: { SEAT: 80 },
+      "2S": { SEAT: 100 },
+    },
+    minGroupSize: 10,
+    maxGroupSize: 40,
+    groupDiscount: 8,
     schedule: [
       { stationCode: "NDLS", arrival: null, departure: "06:10", day: 1, distance: 0 },
       { stationCode: "JP", arrival: "10:35", departure: null, day: 1, distance: 303 },
@@ -117,6 +158,15 @@ export const SEED_TRAINS: Train[] = [
     runsOn: ["Mon", "Thu", "Sat"],
     classes: ["SL", "3A", "2A", "1A"],
     baseFares: { SL: 580, "3A": 1420, "2A": 2180, "1A": 3680 },
+    seatCapacity: {
+      SL: { UB: 14, MB: 14, LB: 15, SU: 14, SL: 15 },
+      "3A": { UB: 21, MB: 21, LB: 22 },
+      "2A": { UB: 16, MB: 16, LB: 16 },
+      "1A": { LB: 18 },
+    },
+    minGroupSize: 5,
+    maxGroupSize: 60,
+    groupDiscount: 12,
     schedule: [
       { stationCode: "SC", arrival: null, departure: "12:45", day: 1, distance: 0 },
       { stationCode: "HWH", arrival: "23:55", departure: null, day: 1, distance: 1577 },

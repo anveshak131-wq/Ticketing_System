@@ -6,6 +6,7 @@ import { logout } from "@/lib/auth-store";
 import { cn } from "@/lib/utils";
 import { motion } from "framer-motion";
 import {
+  BarChart3,
   LayoutDashboard,
   LogOut,
   MapPin,
@@ -13,12 +14,15 @@ import {
   Ticket,
   Train,
   Zap,
+  DollarSign,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 
 const nav = [
   { href: "/admin/dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/admin/analytics", label: "Analytics", icon: BarChart3 },
+  { href: "/admin/pricing", label: "Pricing", icon: DollarSign },
   { href: "/admin/stations", label: "Stations", icon: MapPin },
   { href: "/admin/trains", label: "Trains", icon: Train },
   { href: "/admin/stops", label: "Stops", icon: Zap },
