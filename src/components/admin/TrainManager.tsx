@@ -199,25 +199,162 @@ export function TrainManager() {
           </div>
 
           <div>
-            <div className="mb-2 flex items-center justify-between">
-              <p className="text-sm font-medium">Schedule Stops</p>
-              <Button size="sm" variant="outline" onClick={addStop}>Add Stop</Button>
+            <div className="mb-4 flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium">Schedule Stops</p>
+                <p className="text-xs text-muted mt-1">{form.schedule.length} stops configured</p>
+              </div>
+              <Button size="sm" variant="outline" onClick={addStop}>
+                <Plus className="h-4 w-4" />
+                Add Stop
+              </Button>
             </div>
+
+            {/* Column Headers */}
+            <div className="mb-2 px-3 py-2 grid gap-2 sm:grid-cols-6 text-xs font-semibold text-muted">
+              <div className="sm:col-span-2">Station</div>
+              <div>Arrival</div>
+              <div>Departure</div>
+              <div>Day</div>
+              <div className="flex justify-between">
+                <span>Distance</span>
+                <span>Action</span>
+              </div>
+            </div>
+
+            {/* Stops List */}
             <div className="space-y-2">
-              {form.schedule.map((stop, index) => (
-                <div key={index} className="grid gap-2 rounded-lg border border-border p-3 sm:grid-cols-6">
-                  <select value={stop.stationCode} onChange={(e) => updateStop(index, "stationCode", e.target.value)} className="rounded-lg border border-border bg-card px-2 py-1.5 text-sm sm:col-span-2">
-                    {stations.map((s) => <option key={s.code} value={s.code}>{s.code}</option>)}
-                  </select>
-                  <Input placeholder="Arrival" value={stop.arrival ?? ""} onChange={(e) => updateStop(index, "arrival", e.target.value || null)} />
-                  <Input placeholder="Departure" value={stop.departure ?? ""} onChange={(e) => updateStop(index, "departure", e.target.value || null)} />
-                  <Input type="number" placeholder="Day" value={stop.day} onChange={(e) => updateStop(index, "day", Number(e.target.value))} />
-                  <div className="flex gap-1">
-                    <Input type="number" placeholder="Km" value={stop.distance} onChange={(e) => updateStop(index, "distance", Number(e.target.value))} />
-                    <button type="button" onClick={() => removeStop(index)} className="rounded-lg p-2 text-danger hover:bg-danger/10"><Trash2 className="h-4 w-4" /></button>
+              {form.schedule.map((stop, index) => {
+                const isSource = index === 0;
+                const isDestination = index === form.schedule.length - 1;
+                const stationName = stations.find((s) => s.code === stop.stationCode)?.name || "Unknown";
+
+                return (
+                  <div
+                    key={index}
+                    className={`rounded-lg border p-3 transition-colors ${
+                      isSource || isDestination
+                        ? "border-primary/30 bg-primary/5"
+                        : "border-border hover:bg-muted/30"
+                    }`}
+                  >
+                    {/* Stop Header with Type Badge */}
+                    {(isSource || isDestination) && (
+                      <div className="mb-2 flex gap-2">
+                        {isSource && <span className="text-xs font-semibold rounded-full bg-success/20 text-success px-2 py-0.5">SOURCE</span>}
+                        {isDestination && <span className="text-xs font-semibold rounded-full bg-warning/20 text-warning px-2 py-0.5">DESTINATION</span>}
+                      </div>
+                    )}
+
+                    {/* Stop Details Grid */}
+                    <div className="grid gap-2 sm:grid-cols-6 items-end">
+                      {/* Station Selection */}
+                      <div className="sm:col-span-2">
+                        <select
+                          value={stop.stationCode}
+                          onChange={(e) => updateStop(index, "stationCode", e.target.value)}
+                          disabled={isSource || isDestination}
+                          className="w-full rounded-lg border border-border bg-card px-3 py-2 text-sm font-medium disabled:opacity-60"
+                        >
+                          {stations.map((s) => (
+                            <option key={s.code} value={s.code}>
+                              {s.code} - {s.name}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+
+                      {/* Arrival Time */}
+                      <div>
+                        <label className="text-xs text-muted block mb-1">Arrival</label>
+                        <Input
+                          type="time"
+                          placeholder="--:--"
+                          value={stop.arrival ?? ""}
+                          onChange={(e) => updateStop(index, "arrival", e.target.value || null)}
+                          className="text-sm"
+                          disabled={isSource}
+                          title={isSource ? "Source station has no arrival" : ""}
+                        />
+                      </div>
+
+                      {/* Departure Time */}
+                      <div>
+                        <label className="text-xs text-muted block mb-1">Departure</label>
+                        <Input
+                          type="time"
+                          placeholder="--:--"
+                          value={stop.departure ?? ""}
+                          onChange={(e) => updateStop(index, "departure", e.target.value || null)}
+                          className="text-sm"
+                          disabled={isDestination}
+                          title={isDestination ? "Destination station has no departure" : ""}
+                        />
+                      </div>
+
+                      {/* Day */}
+                      <div>
+                        <label className="text-xs text-muted block mb-1">Day</label>
+                        <Input
+                          type="number"
+                          min={1}
+                          max={7}
+                          value={stop.day}
+                          onChange={(e) => updateStop(index, "day", Number(e.target.value))}
+                          className="text-sm"
+                        />
+                      </div>
+
+                      {/* Distance & Delete */}
+                      <div className="flex gap-1">
+                        <div className="flex-1">
+                          <label className="text-xs text-muted block mb-1">Km</label>
+                          <Input
+                            type="number"
+                            min={0}
+                            value={stop.distance}
+                            onChange={(e) => updateStop(index, "distance", Number(e.target.value))}
+                            className="text-sm"
+                            disabled={isSource}
+                            title={isSource ? "Source distance is 0" : ""}
+                          />
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => removeStop(index)}
+                          disabled={form.schedule.length <= 2 || isSource || isDestination}
+                          className="rounded-lg p-2 text-danger hover:bg-danger/10 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                          title={
+                            form.schedule.length <= 2
+                              ? "Need at least 2 stops"
+                              : isSource || isDestination
+                                ? "Cannot delete source/destination"
+                                : "Delete stop"
+                          }
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Stop Info Row */}
+                    <div className="mt-2 text-xs text-muted">
+                      Stop {index + 1} of {form.schedule.length} • {stationName}
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
+            </div>
+
+            {/* Legend */}
+            <div className="mt-4 p-3 rounded-lg bg-foreground/5 text-xs text-muted space-y-1">
+              <p className="font-medium text-foreground">Legend:</p>
+              <ul className="space-y-1 pl-2">
+                <li>• <strong>SOURCE</strong> - Starting station (no arrival time)</li>
+                <li>• <strong>DESTINATION</strong> - Final station (no departure time)</li>
+                <li>• <strong>Day</strong> - Day number in journey (1 = start date)</li>
+                <li>• <strong>Km</strong> - Cumulative distance from source</li>
+              </ul>
             </div>
           </div>
 
