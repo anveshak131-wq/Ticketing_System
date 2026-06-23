@@ -286,8 +286,8 @@ function createQrErrorCorrection(data: number[]): number[] {
 function createQrCodewords(value: string): number[] {
   const payload = Array.from(new TextEncoder().encode(value));
   const buffer = createBitBuffer();
-  buffer.push(0b0100, 4);
-  buffer.push(payload.length, 8);
+  buffer.push(0b0100, 4);  // Mode indicator: byte mode
+  buffer.push(payload.length, 16);  // Character count indicator (16 bits for QR v1-9)
   payload.forEach((byte) => buffer.push(byte, 8));
 
   const capacityBits = QR_DATA_CODEWORDS * 8;
@@ -517,7 +517,8 @@ function createContentStream(reservation: Reservation): string {
   const passengerCount = reservation.passengers.length;
   const primaryPassenger = reservation.passengers[0]?.name ?? "Passenger";
   const channel = reservation.bookingChannel === "agent" ? "Counter booking" : "Online booking";
-  const qrPayload = `PNR: ${reservation.pnr}\nSTATUS: ${status.label}`;
+  // Format: key-value pairs separated by | for better scanning
+  const qrPayload = `PNR=${reservation.pnr}|TRAIN=${reservation.trainNumber}|STATUS=${status.label}`;
 
   drawRect(ops, 0, 0, PAGE_WIDTH, PAGE_HEIGHT, { fill: COLORS.page });
   drawRect(ops, 0, 0, PAGE_WIDTH, 124, { fill: COLORS.navy });
