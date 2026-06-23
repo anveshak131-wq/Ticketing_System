@@ -8,12 +8,19 @@ import { PageTransition } from "@/components/motion/PageTransition";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { buttonStyles } from "@/components/ui/button-styles";
+import { useReservations } from "@/hooks/use-reservations";
 import { getStationLabel, searchTrains } from "@/lib/train-search";
 import { saveReservation } from "@/lib/booking-store";
 import { generatePNR, formatPNR } from "@/lib/pnr";
 import { formatCurrency, formatDate } from "@/lib/utils";
+import { calculateTotalFare } from "@/lib/pricing-engine";
+import {
+  buildBerthPreferenceCounts,
+  buildSeatInventory,
+} from "@/lib/seat-availability";
+import { bookSeats } from "@/lib/seat-management";
 import type { BookingChannel, Passenger, Reservation, TrainSearchResult, TravelClass } from "@/types";
-import { CLASS_LABELS } from "@/types";
+import { BERTH_LABELS, BERTH_PREFERENCE_LABELS, CLASS_LABELS } from "@/types";
 import { AnimatePresence, motion } from "framer-motion";
 import { CheckCircle2, Copy, Download, Ticket } from "lucide-react";
 import Link from "next/link";
@@ -42,6 +49,7 @@ function createDefaultPassenger(): Passenger {
 
 export function BookingWizard({ mode = "public", agent }: BookingWizardProps) {
   const isAgent = mode === "agent";
+  const reservations = useReservations();
   const [step, setStep] = useState(0);
   const [loading, setLoading] = useState(false);
   const [from, setFrom] = useState("NDLS");
@@ -52,29 +60,70 @@ export function BookingWizard({ mode = "public", agent }: BookingWizardProps) {
   const [selectedTrain, setSelectedTrain] = useState<TrainSearchResult | null>(null);
   const [passengers, setPassengers] = useState<Passenger[]>([createDefaultPassenger()]);
   const [confirmedPNR, setConfirmedPNR] = useState<string | null>(null);
+  const [confirmedSeats, setConfirmedSeats] = useState<string[]>([]);
+  const [bookingError, setBookingError] = useState("");
   const [copied, setCopied] = useState(false);
 
-  const totalFare = useMemo(() => {
-    if (!selectedTrain) return 0;
-    const perPerson = selectedTrain.fare[travelClass] ?? 0;
-    return perPerson * passengers.length;
+  const fareQuote = useMemo(() => {
+    if (!selectedTrain) {
+      return {
+        unitPrice: 0,
+        totalFare: 0,
+        pricingMultiplier: 1,
+        isGroupBooking: false,
+      };
+    }
+
+    return calculateTotalFare(
+      selectedTrain.fare[travelClass] ?? 0,
+      passengers.length,
+      selectedTrain.occupancyRateByClass[travelClass] ?? 0,
+      undefined,
+      selectedTrain.groupDiscount
+    );
   }, [selectedTrain, travelClass, passengers.length]);
+
+  const totalFare = fareQuote.totalFare;
+  const selectedAvailableBerths = selectedTrain?.availableBerths[travelClass] ?? {};
+  const selectedAvailableSeats = selectedTrain?.availableSeats[travelClass] ?? 0;
 
   const handleSearch = async () => {
     setLoading(true);
+    setBookingError("");
+    setSelectedTrain(null);
+    setConfirmedPNR(null);
+    setConfirmedSeats([]);
     await new Promise((r) => setTimeout(r, 800));
-    setResults(searchTrains(from, to, date));
+    setResults(searchTrains(from, to, date, reservations));
     setLoading(false);
     setStep(1);
   };
 
   const handleSelectTrain = (train: TrainSearchResult) => {
+    setBookingError("");
     setSelectedTrain(train);
     setStep(2);
   };
 
   const handleConfirm = async () => {
     if (!selectedTrain) return;
+
+    const inventory = buildSeatInventory(
+      selectedTrain,
+      travelClass,
+      date,
+      reservations
+    );
+    const allocation = bookSeats(
+      inventory,
+      passengers.length,
+      buildBerthPreferenceCounts(passengers)
+    );
+
+    if (!allocation.success) {
+      setBookingError(allocation.message);
+      return;
+    }
 
     const pnr = generatePNR();
 
@@ -90,6 +139,10 @@ export function BookingWizard({ mode = "public", agent }: BookingWizardProps) {
       travelClass,
       passengers,
       totalFare,
+      baseFare: selectedTrain.fare[travelClass] ?? 0,
+      pricingMultiplier: fareQuote.pricingMultiplier,
+      isGroupBooking: fareQuote.isGroupBooking,
+      groupSize: passengers.length,
       status: "confirmed",
       bookingChannel: mode,
       bookedBy: isAgent ? agent?.name : undefined,
@@ -97,10 +150,12 @@ export function BookingWizard({ mode = "public", agent }: BookingWizardProps) {
       agentCode: isAgent ? agent?.agentCode : undefined,
       bookedAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
+      seats: allocation.bookedSeats,
     };
 
     await saveReservation(reservation);
     setConfirmedPNR(pnr);
+    setConfirmedSeats(allocation.bookedSeats);
     setStep(3);
   };
 
@@ -176,14 +231,30 @@ export function BookingWizard({ mode = "public", agent }: BookingWizardProps) {
                 </div>
                 <p className="mt-2 text-sm text-muted">
                   {formatDate(date)} · {getStationLabel(from)} → {getStationLabel(to)} ·{" "}
-                  {CLASS_LABELS[travelClass]} · {formatCurrency(totalFare)} total
+                  {CLASS_LABELS[travelClass]} · {formatCurrency(fareQuote.unitPrice)} per passenger
                 </p>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <Badge variant={selectedAvailableSeats > 10 ? "success" : "warning"}>
+                    {selectedAvailableSeats} seats available
+                  </Badge>
+                  {Object.entries(selectedAvailableBerths).map(([berthType, count]) => (
+                    <Badge key={berthType} variant="default">
+                      {BERTH_LABELS[berthType as keyof typeof BERTH_LABELS]}: {count}
+                    </Badge>
+                  ))}
+                </div>
               </div>
               <PassengerForm
                 passengers={passengers}
                 onChange={setPassengers}
-                onNext={() => setStep(3)}
+                onNext={() => {
+                  setBookingError("");
+                  setStep(3);
+                }}
                 onBack={() => setStep(1)}
+                availableBerths={selectedAvailableBerths}
+                travelClass={travelClass}
+                farePerPassenger={fareQuote.unitPrice}
               />
             </motion.div>
           )}
@@ -224,6 +295,18 @@ export function BookingWizard({ mode = "public", agent }: BookingWizardProps) {
                   <span className="text-muted">Passengers</span>
                   <span className="font-medium">{passengers.length}</span>
                 </div>
+                <div className="flex justify-between border-b border-border pb-2">
+                  <span className="text-muted">Fare per passenger</span>
+                  <span className="font-medium">{formatCurrency(fareQuote.unitPrice)}</span>
+                </div>
+                {fareQuote.pricingMultiplier !== 1 && (
+                  <div className="flex justify-between border-b border-border pb-2">
+                    <span className="text-muted">Dynamic pricing</span>
+                    <span className="font-medium">
+                      {Math.round((fareQuote.pricingMultiplier - 1) * 100)}%
+                    </span>
+                  </div>
+                )}
                 <div className="flex justify-between pt-2 text-lg font-bold">
                   <span>Total Fare</span>
                   <span className="text-primary">{formatCurrency(totalFare)}</span>
@@ -233,10 +316,17 @@ export function BookingWizard({ mode = "public", agent }: BookingWizardProps) {
               <ul className="mt-6 space-y-2">
                 {passengers.map((p, i) => (
                   <li key={p.id} className="rounded-lg bg-foreground/5 px-3 py-2 text-sm">
-                    {i + 1}. {p.name} · {p.age} yrs · {p.gender}
+                    {i + 1}. {p.name} · {p.age} yrs · {p.gender} ·{" "}
+                    {BERTH_PREFERENCE_LABELS[p.berthPreference]}
                   </li>
                 ))}
               </ul>
+
+              {bookingError && (
+                <p className="mt-4 rounded-xl border border-danger/30 bg-danger/10 px-4 py-3 text-sm text-danger">
+                  {bookingError}
+                </p>
+              )}
 
               <div className="mt-6 flex gap-3">
                 <Button variant="outline" onClick={() => setStep(2)}>
@@ -277,6 +367,13 @@ export function BookingWizard({ mode = "public", agent }: BookingWizardProps) {
                   {copied ? "Copied!" : "Copy PNR"}
                 </Button>
               </div>
+
+              {confirmedSeats.length > 0 && (
+                <div className="mx-auto mt-4 max-w-md rounded-xl border border-border bg-card p-4 text-left">
+                  <p className="text-sm font-semibold">Allocated seats</p>
+                  <p className="mt-1 text-sm text-muted">{confirmedSeats.join(", ")}</p>
+                </div>
+              )}
 
               <div className="mt-6 flex flex-wrap justify-center gap-3">
                 <a

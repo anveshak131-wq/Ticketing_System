@@ -26,6 +26,7 @@ function emptyTrain(): Train {
     runsOn: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
     classes: ["3A"],
     baseFares: { "3A": 1000 },
+    seatCapacity: { "3A": { UB: 20, MB: 20, LB: 20 } },
     schedule: [
       { stationCode: "NDLS", arrival: null, departure: "06:00", day: 1, distance: 0 },
       { stationCode: "BCT", arrival: "12:00", departure: null, day: 1, distance: 500 },

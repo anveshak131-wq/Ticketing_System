@@ -2,7 +2,9 @@
 
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
-import type { BerthPreference, Passenger } from "@/types";
+import { BERTH_PREFERENCE_LABELS } from "@/types";
+import { formatCurrency } from "@/lib/utils";
+import type { BerthPreference, BerthType, Passenger, TravelClass } from "@/types";
 import { motion } from "framer-motion";
 import { Plus, Trash2 } from "lucide-react";
 
@@ -11,7 +13,18 @@ interface PassengerFormProps {
   onChange: (passengers: Passenger[]) => void;
   onNext: () => void;
   onBack: () => void;
+  availableBerths?: Partial<Record<BerthType, number>>;
+  travelClass?: TravelClass;
+  farePerPassenger?: number;
 }
+
+const BERTH_OPTIONS: Exclude<BerthPreference, "none">[] = [
+  "LB",
+  "MB",
+  "UB",
+  "SL",
+  "SU",
+];
 
 function createPassenger(): Passenger {
   return {
@@ -28,7 +41,16 @@ export function PassengerForm({
   onChange,
   onNext,
   onBack,
+  availableBerths,
+  travelClass,
+  farePerPassenger,
 }: PassengerFormProps) {
+  const hasAvailability = Boolean(availableBerths);
+  const availableBerthOptions = hasAvailability
+    ? BERTH_OPTIONS.filter((berth) => availableBerths?.[berth] !== undefined)
+    : BERTH_OPTIONS;
+  const seatOnly = hasAvailability && availableBerthOptions.length === 0;
+
   const updatePassenger = (id: string, field: keyof Passenger, value: string | number) => {
     onChange(
       passengers.map((p) => (p.id === id ? { ...p, [field]: value } : p))
@@ -55,6 +77,24 @@ export function PassengerForm({
       animate={{ opacity: 1, x: 0 }}
       className="space-y-4"
     >
+      {(travelClass || farePerPassenger || availableBerths) && (
+        <div className="rounded-2xl border border-border bg-card p-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <p className="text-sm font-semibold">Passenger Details</p>
+              <p className="mt-1 text-xs text-muted">
+                Add passenger information and choose preferred seat or berth.
+              </p>
+            </div>
+            {farePerPassenger ? (
+              <div className="rounded-xl bg-primary/10 px-3 py-2 text-sm font-semibold text-primary">
+                {formatCurrency(farePerPassenger)} each
+              </div>
+            ) : null}
+          </div>
+        </div>
+      )}
+
       {passengers.map((passenger, index) => (
         <motion.div
           key={passenger.id}
@@ -110,27 +150,48 @@ export function PassengerForm({
                 <option value="other">Other</option>
               </select>
             </div>
-            <div>
-              <label className="mb-1.5 block text-sm font-medium">Berth Preference</label>
-              <select
-                value={passenger.berthPreference}
-                onChange={(e) =>
-                  updatePassenger(
-                    passenger.id,
-                    "berthPreference",
-                    e.target.value as BerthPreference
-                  )
-                }
-                className="w-full rounded-xl border border-border bg-card px-4 py-2.5 outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
-              >
-                <option value="none">No Preference</option>
-                <option value="LB">Lower Berth</option>
-                <option value="MB">Middle Berth</option>
-                <option value="UB">Upper Berth</option>
-                <option value="SL">Side Lower</option>
-                <option value="SU">Side Upper</option>
-              </select>
-            </div>
+            {seatOnly ? (
+              <div>
+                <label className="mb-1.5 block text-sm font-medium">
+                  Seat Assignment
+                </label>
+                <div className="rounded-xl border border-border bg-foreground/5 px-4 py-2.5 text-sm text-muted">
+                  Seat will be auto-assigned from available seats.
+                </div>
+              </div>
+            ) : (
+              <div>
+                <label className="mb-1.5 block text-sm font-medium">
+                  Seat / Berth Preference
+                </label>
+                <select
+                  value={passenger.berthPreference}
+                  onChange={(e) =>
+                    updatePassenger(
+                      passenger.id,
+                      "berthPreference",
+                      e.target.value as BerthPreference
+                    )
+                  }
+                  className="w-full rounded-xl border border-border bg-card px-4 py-2.5 outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
+                >
+                  <option value="none">No Preference</option>
+                  {availableBerthOptions.map((berth) => {
+                    const available = availableBerths?.[berth];
+                    return (
+                      <option
+                        key={berth}
+                        value={berth}
+                        disabled={available !== undefined && available <= 0}
+                      >
+                        {BERTH_PREFERENCE_LABELS[berth]}
+                        {available !== undefined ? ` (${available} left)` : ""}
+                      </option>
+                    );
+                  })}
+                </select>
+              </div>
+            )}
           </div>
         </motion.div>
       ))}

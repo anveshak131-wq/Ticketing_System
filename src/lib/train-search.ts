@@ -1,30 +1,20 @@
 "use client";
 
 import { getStations, getTrains, getStation, getStationLabel } from "@/lib/catalog-store";
-import type { TrainSearchResult, TravelClass } from "@/types";
-
-function hashAvailability(seed: string, travelClass: TravelClass): number {
-  let hash = 0;
-  for (let i = 0; i < seed.length; i++) {
-    hash = (hash << 5) - hash + seed.charCodeAt(i);
-    hash |= 0;
-  }
-  const base = Math.abs(hash % 40) + 5;
-  const classMultiplier: Record<TravelClass, number> = {
-    SL: 1,
-    "2S": 0.9,
-    "3A": 0.6,
-    "2A": 0.35,
-    "1A": 0.15,
-    CC: 0.5,
-  };
-  return Math.max(0, Math.floor(base * classMultiplier[travelClass]));
-}
+import { calculateDynamicPrice } from "@/lib/pricing-engine";
+import { buildSeatInventory } from "@/lib/seat-availability";
+import {
+  calculateOccupancyRate,
+  getAvailableSeats,
+  getAvailableSeatsByBerth,
+} from "@/lib/seat-management";
+import type { Reservation, TrainSearchResult, TravelClass } from "@/types";
 
 export function searchTrains(
   from: string,
   to: string,
-  date: string
+  date: string,
+  reservations: Reservation[] = []
 ): TrainSearchResult[] {
   const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
   const dayOfWeek = dayNames[new Date(date + "T12:00:00").getDay()];
@@ -38,15 +28,43 @@ export function searchTrains(
     })
     .map((train) => {
       const availableSeats: Partial<Record<TravelClass, number>> = {};
+      const availableBerths: TrainSearchResult["availableBerths"] = {};
       const fare: Partial<Record<TravelClass, number>> = {};
-      const seed = `${train.number}-${from}-${to}-${date}`;
+      const dynamicPrice: Partial<Record<TravelClass, number>> = {};
+      const occupancyRateByClass: TrainSearchResult["occupancyRateByClass"] = {};
+      let waitlistCount = 0;
 
       for (const cls of train.classes) {
-        availableSeats[cls] = hashAvailability(seed + cls, cls);
-        fare[cls] = train.baseFares[cls] ?? 0;
+        const inventory = buildSeatInventory(train, cls, date, reservations);
+        const baseFare = train.baseFares[cls] ?? 0;
+        const occupancyRate = calculateOccupancyRate(inventory);
+
+        availableSeats[cls] = getAvailableSeats(inventory);
+        availableBerths[cls] = getAvailableSeatsByBerth(inventory);
+        fare[cls] = baseFare;
+        dynamicPrice[cls] = calculateDynamicPrice(baseFare, occupancyRate);
+        occupancyRateByClass[cls] = occupancyRate;
+        waitlistCount += inventory.reduce((sum, item) => sum + item.waitlisted, 0);
       }
 
-      return { ...train, availableSeats, fare };
+      const occupancyValues = Object.values(occupancyRateByClass);
+      const occupancyRate = occupancyValues.length
+        ? Math.round(
+            occupancyValues.reduce((sum, rate) => sum + rate, 0) /
+              occupancyValues.length
+          )
+        : 0;
+
+      return {
+        ...train,
+        availableSeats,
+        availableBerths,
+        fare,
+        dynamicPrice,
+        occupancyRate,
+        occupancyRateByClass,
+        waitlistCount,
+      };
     });
 }
 

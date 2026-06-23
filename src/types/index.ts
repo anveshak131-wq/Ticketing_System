@@ -150,9 +150,11 @@ export interface TrainSearchParams {
 
 export interface TrainSearchResult extends Train {
   availableSeats: Partial<Record<TravelClass, number>>;
+  availableBerths: Partial<Record<TravelClass, Partial<Record<BerthType, number>>>>;
   fare: Partial<Record<TravelClass, number>>;
   dynamicPrice: Partial<Record<TravelClass, number>>; // With pricing rules applied
-  occupancyRate: number; // 0-100
+  occupancyRate: number; // 0-100 average across available classes
+  occupancyRateByClass: Partial<Record<TravelClass, number>>;
   waitlistCount: number;
 }
 
@@ -188,4 +190,13 @@ export const BERTH_LABELS: Record<BerthType, string> = {
   SU: "Side Upper",
   SL: "Side Lower",
   SEAT: "Seat",
+};
+
+export const BERTH_PREFERENCE_LABELS: Record<BerthPreference, string> = {
+  LB: "Lower Berth",
+  MB: "Middle Berth",
+  UB: "Upper Berth",
+  SL: "Side Lower",
+  SU: "Side Upper",
+  none: "No Preference",
 };

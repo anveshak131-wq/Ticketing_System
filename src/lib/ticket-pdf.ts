@@ -26,6 +26,7 @@ const STATUS_STYLES: Record<ReservationStatus, { label: string; color: string }>
   confirmed: { label: "CONFIRMED", color: COLORS.green },
   modified: { label: "MODIFIED", color: COLORS.amber },
   cancelled: { label: "CANCELLED", color: COLORS.red },
+  waitlisted: { label: "WAITLISTED", color: COLORS.blue },
 };
 
 const BERTH_LABELS: Record<Passenger["berthPreference"], string> = {

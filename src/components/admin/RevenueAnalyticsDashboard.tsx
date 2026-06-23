@@ -16,7 +16,7 @@ import { BarChart3, Download, TrendingUp } from "lucide-react";
 import { useState } from "react";
 
 export function RevenueAnalyticsDashboard() {
-  const { reservations } = useReservations();
+  const reservations = useReservations();
   const [period, setPeriod] = useState<"week" | "month" | "custom">("month");
   const [startDate, setStartDate] = useState(
     new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split("T")[0]
@@ -60,13 +60,13 @@ export function RevenueAnalyticsDashboard() {
         <div className="flex items-center justify-between gap-2 flex-wrap">
           <h3 className="font-semibold">Revenue Analytics</h3>
           <div className="flex gap-2">
-            <Button size="sm" variant={period === "week" ? "default" : "outline"} onClick={() => handleDatePeriod("week")}>
+            <Button size="sm" variant={period === "week" ? "primary" : "outline"} onClick={() => handleDatePeriod("week")}>
               7 Days
             </Button>
-            <Button size="sm" variant={period === "month" ? "default" : "outline"} onClick={() => handleDatePeriod("month")}>
+            <Button size="sm" variant={period === "month" ? "primary" : "outline"} onClick={() => handleDatePeriod("month")}>
               30 Days
             </Button>
-            <Button size="sm" variant={period === "custom" ? "default" : "outline"} onClick={() => setPeriod("custom")}>
+            <Button size="sm" variant={period === "custom" ? "primary" : "outline"} onClick={() => setPeriod("custom")}>
               Custom
             </Button>
           </div>
