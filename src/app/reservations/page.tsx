@@ -11,7 +11,7 @@ import {
 } from "@/lib/booking-rules";
 import {
   cancelReservation,
-  getReservationByPNR,
+  fetchReservationByPNR,
   saveReservation,
 } from "@/lib/booking-store";
 import { formatPNR, isValidPNR } from "@/lib/pnr";
@@ -48,7 +48,7 @@ function ReservationsContent() {
     }
   }, [searchParams]);
 
-  const lookupPNR = (raw: string) => {
+  const lookupPNR = async (raw: string) => {
     setError("");
     setEditing(false);
     setShowCancelConfirm(false);
@@ -60,7 +60,7 @@ function ReservationsContent() {
       return;
     }
 
-    const found = getReservationByPNR(clean);
+    const found = await fetchReservationByPNR(clean);
     if (!found) {
       setError("No reservation found for this PNR");
       setReservation(null);
@@ -71,12 +71,12 @@ function ReservationsContent() {
     setEditPassengers(found.passengers);
   };
 
-  const handleSearch = (e: React.FormEvent) => {
+  const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
-    lookupPNR(pnrInput);
+    await lookupPNR(pnrInput);
   };
 
-  const handleSaveEdit = () => {
+  const handleSaveEdit = async () => {
     if (!reservation) return;
     const updated: Reservation = {
       ...reservation,
@@ -84,14 +84,14 @@ function ReservationsContent() {
       status: "modified",
       updatedAt: new Date().toISOString(),
     };
-    saveReservation(updated);
-    setReservation(updated);
+    const saved = await saveReservation(updated);
+    setReservation(saved);
     setEditing(false);
   };
 
-  const handleCancel = () => {
+  const handleCancel = async () => {
     if (!reservation) return;
-    const cancelled = cancelReservation(reservation.pnr);
+    const cancelled = await cancelReservation(reservation.pnr);
     if (cancelled) {
       setReservation(cancelled);
       setShowCancelConfirm(false);

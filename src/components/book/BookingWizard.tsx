@@ -72,7 +72,7 @@ export function BookingWizard({ mode = "public", agent }: BookingWizardProps) {
     setStep(2);
   };
 
-  const handleConfirm = () => {
+  const handleConfirm = async () => {
     if (!selectedTrain) return;
 
     const pnr = generatePNR();
@@ -98,7 +98,7 @@ export function BookingWizard({ mode = "public", agent }: BookingWizardProps) {
       updatedAt: new Date().toISOString(),
     };
 
-    saveReservation(reservation);
+    await saveReservation(reservation);
     setConfirmedPNR(pnr);
     setStep(3);
   };

@@ -33,8 +33,7 @@ export function AdminShell({ userName, children }: AdminShellProps) {
   const router = useRouter();
 
   const handleLogout = () => {
-    logout();
-    router.replace("/admin/login");
+    void logout().then(() => router.replace("/admin/login"));
   };
 
   return (

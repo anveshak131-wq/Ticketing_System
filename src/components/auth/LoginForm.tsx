@@ -40,12 +40,12 @@ export function LoginForm({
     }
   }, [session, role, redirectTo, router]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
     setLoading(true);
 
-    const result = login(email, password, role);
+    const result = await login(email, password, role);
     setLoading(false);
 
     if (!result.ok) {

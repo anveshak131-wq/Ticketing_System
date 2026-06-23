@@ -1,9 +1,11 @@
 "use client";
 
-import { createStore } from "@/lib/storage";
 import type { Reservation } from "@/types";
 
-const reservationsStore = createStore<Reservation[]>("ir-demo-reservations", () => []);
+const listeners = new Set<() => void>();
+let cache: Reservation[] = [];
+let loading = false;
+let loaded = false;
 
 function normalize(reservation: Reservation): Reservation {
   return {
@@ -12,59 +14,103 @@ function normalize(reservation: Reservation): Reservation {
   };
 }
 
+function notify() {
+  listeners.forEach((l) => l());
+}
+
 export function subscribeReservations(listener: () => void) {
-  return reservationsStore.subscribe(listener);
+  listeners.add(listener);
+  return () => listeners.delete(listener);
 }
 
 export function getReservationsSnapshot(): Reservation[] {
-  return reservationsStore.getSnapshot().map(normalize);
+  return cache;
 }
 
 export function getReservationsServerSnapshot(): Reservation[] {
   return [];
 }
 
+export function isReservationsLoaded() {
+  return loaded;
+}
+
+export async function loadReservations(): Promise<Reservation[]> {
+  if (loading) return cache;
+  loading = true;
+  try {
+    const res = await fetch("/api/reservations", { cache: "no-store" });
+    if (res.ok) {
+      const list = (await res.json()) as Reservation[];
+      cache = list.map(normalize);
+      loaded = true;
+      notify();
+    }
+  } finally {
+    loading = false;
+  }
+  return cache;
+}
+
 export function getAllReservations(): Reservation[] {
-  return reservationsStore.read().map(normalize);
+  return cache;
 }
 
 export function getReservationByPNR(pnr: string): Reservation | null {
   const clean = pnr.replace(/\D/g, "");
-  return getAllReservations().find((r) => r.pnr === clean) ?? null;
+  return cache.find((r) => r.pnr === clean) ?? null;
 }
 
 export function getAgentReservations(agentId: string): Reservation[] {
-  return getAllReservations().filter((r) => r.bookedById === agentId);
+  return cache.filter((r) => r.bookedById === agentId);
 }
 
-export function saveReservation(reservation: Reservation): void {
-  const store = getAllReservations();
-  const normalized = normalize(reservation);
-  const index = store.findIndex((r) => r.pnr === normalized.pnr);
-  if (index >= 0) {
-    store[index] = normalized;
-  } else {
-    store.unshift(normalized);
-  }
-  reservationsStore.write(store);
+export async function saveReservation(reservation: Reservation): Promise<Reservation> {
+  const res = await fetch("/api/reservations", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(normalize(reservation)),
+  });
+  if (!res.ok) throw new Error("Failed to save reservation");
+  const saved = normalize(await res.json());
+  const index = cache.findIndex((r) => r.pnr === saved.pnr);
+  if (index >= 0) cache[index] = saved;
+  else cache.unshift(saved);
+  notify();
+  return saved;
 }
 
-export function cancelReservation(pnr: string): Reservation | null {
+export async function cancelReservation(pnr: string): Promise<Reservation | null> {
   const reservation = getReservationByPNR(pnr);
   if (!reservation) return null;
-  const updated: Reservation = {
+  return saveReservation({
     ...reservation,
     status: "cancelled",
     updatedAt: new Date().toISOString(),
-  };
-  saveReservation(updated);
-  return updated;
+  });
 }
 
-export function deleteReservation(pnr: string): boolean {
-  const store = getAllReservations();
-  const next = store.filter((r) => r.pnr !== pnr);
-  if (next.length === store.length) return false;
-  reservationsStore.write(next);
+export async function deleteReservation(pnr: string): Promise<boolean> {
+  const res = await fetch(
+    `/api/reservations?pnr=${encodeURIComponent(pnr.replace(/\D/g, ""))}`,
+    { method: "DELETE" }
+  );
+  if (!res.ok) return false;
+  cache = cache.filter((r) => r.pnr !== pnr.replace(/\D/g, ""));
+  notify();
   return true;
+}
+
+export async function fetchReservationByPNR(pnr: string): Promise<Reservation | null> {
+  const res = await fetch(
+    `/api/reservations?pnr=${encodeURIComponent(pnr.replace(/\D/g, ""))}`,
+    { cache: "no-store" }
+  );
+  if (!res.ok) return null;
+  const saved = normalize(await res.json());
+  const index = cache.findIndex((r) => r.pnr === saved.pnr);
+  if (index >= 0) cache[index] = saved;
+  else cache.unshift(saved);
+  notify();
+  return saved;
 }

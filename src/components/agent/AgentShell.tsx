@@ -25,8 +25,7 @@ export function AgentShell({ userName, agentCode, children }: AgentShellProps) {
   const router = useRouter();
 
   const handleLogout = () => {
-    logout();
-    router.replace("/agent/login");
+    void logout().then(() => router.replace("/agent/login"));
   };
 
   return (

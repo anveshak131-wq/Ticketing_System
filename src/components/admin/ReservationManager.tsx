@@ -29,14 +29,14 @@ export function ReservationManager() {
     );
   });
 
-  const handleSaveEdit = () => {
+  const handleSaveEdit = async () => {
     if (!editing) return;
-    saveReservation({ ...editing, updatedAt: new Date().toISOString() });
+    await saveReservation({ ...editing, updatedAt: new Date().toISOString() });
     setEditing(null);
   };
 
-  const handleDelete = (pnr: string) => {
-    deleteReservation(pnr);
+  const handleDelete = async (pnr: string) => {
+    await deleteReservation(pnr);
     setDeletePnr(null);
   };
 

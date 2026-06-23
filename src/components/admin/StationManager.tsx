@@ -30,7 +30,7 @@ export function StationManager() {
     setError("");
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     const code = form.code.trim().toUpperCase();
     if (!code || code.length < 3) {
       setError("Station code must be at least 3 characters");
@@ -45,14 +45,18 @@ export function StationManager() {
       return;
     }
 
-    saveStation({ ...form, code: code.toUpperCase() });
-    setForm(emptyStation);
-    setEditing(null);
-    setError("");
+    try {
+      await saveStation({ ...form, code: code.toUpperCase() });
+      setForm(emptyStation);
+      setEditing(null);
+      setError("");
+    } catch {
+      setError("Failed to save station");
+    }
   };
 
-  const handleDelete = (code: string) => {
-    const ok = deleteStation(code);
+  const handleDelete = async (code: string) => {
+    const ok = await deleteStation(code);
     if (!ok) {
       setError("Cannot delete — station is used by a train route");
       return;

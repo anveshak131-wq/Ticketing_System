@@ -1,0 +1,27 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "railway-ticketing",
+  "main": ".open-next/worker.js",
+  "compatibility_date": "2024-12-30",
+  "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
+  "assets": {
+    "directory": ".open-next/assets",
+    "binding": "ASSETS"
+  },
+  "services": [
+    {
+      "binding": "WORKER_SELF_REFERENCE",
+      "service": "railway-ticketing"
+    }
+  ],
+  "kv_namespaces": [
+    {
+      "binding": "TICKETING_KV",
+      "id": "6ef135e979cb421093181716d00ebea0"
+    },
+    {
+      "binding": "TICKETING_SESSIONS",
+      "id": "5e11a37273d3415aa0d8b7a4317133c7"
+    }
+  ]
+}

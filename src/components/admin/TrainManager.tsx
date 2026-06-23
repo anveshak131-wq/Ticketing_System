@@ -100,7 +100,7 @@ export function TrainManager() {
     }));
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!form.number.trim() || !form.name.trim()) {
       setError("Train number and name are required");
       return;
@@ -118,10 +118,14 @@ export function TrainManager() {
       return;
     }
 
-    saveTrain({ ...form, number: form.number.trim() });
-    setShowForm(false);
-    setEditingNumber(null);
-    setError("");
+    try {
+      await saveTrain({ ...form, number: form.number.trim() });
+      setShowForm(false);
+      setEditingNumber(null);
+      setError("");
+    } catch {
+      setError("Failed to save train");
+    }
   };
 
   return (
@@ -240,7 +244,7 @@ export function TrainManager() {
             </div>
             <div className="flex gap-1">
               <button type="button" onClick={() => openEdit(train)} className="rounded-lg p-2 text-primary hover:bg-primary/10"><Pencil className="h-4 w-4" /></button>
-              <button type="button" onClick={() => deleteTrain(train.number)} className="rounded-lg p-2 text-danger hover:bg-danger/10"><Trash2 className="h-4 w-4" /></button>
+              <button type="button" onClick={() => void deleteTrain(train.number)} className="rounded-lg p-2 text-danger hover:bg-danger/10"><Trash2 className="h-4 w-4" /></button>
             </div>
           </div>
         ))}

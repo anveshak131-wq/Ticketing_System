@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Outfit } from "next/font/google";
 import { LayoutShell } from "@/components/layout/LayoutShell";
 import { ThemeProvider } from "@/components/providers/ThemeProvider";
+import { DataProvider } from "@/components/providers/DataProvider";
 import "./globals.css";
 
 const outfit = Outfit({
@@ -24,7 +25,9 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning className={`${outfit.variable} h-full`}>
       <body className="min-h-full flex flex-col antialiased">
         <ThemeProvider>
-          <LayoutShell>{children}</LayoutShell>
+          <DataProvider>
+            <LayoutShell>{children}</LayoutShell>
+          </DataProvider>
         </ThemeProvider>
       </body>
     </html>

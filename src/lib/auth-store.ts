@@ -1,94 +1,72 @@
 "use client";
 
-import { DEMO_CREDENTIALS, SEED_USERS } from "@/data/seed-data";
-import { createStore } from "@/lib/storage";
-import type { AuthSession, User, UserRole } from "@/types";
+import { DEMO_CREDENTIALS } from "@/data/seed-data";
+import type { AuthSession, UserRole } from "@/types";
 
-const USERS_KEY = "ir-demo-users";
-const SESSION_KEY = "ir-demo-session";
-const SESSION_HOURS = 8;
+const listeners = new Set<() => void>();
+let session: AuthSession | null = null;
+let loading = false;
+let loaded = false;
 
-const usersStore = createStore<User[]>(USERS_KEY, () => SEED_USERS);
-
-function readSession(): AuthSession | null {
-  if (typeof window === "undefined") return null;
-  try {
-    const raw = localStorage.getItem(SESSION_KEY);
-    if (!raw) return null;
-    const session = JSON.parse(raw) as AuthSession;
-    if (session.expiresAt < Date.now()) {
-      localStorage.removeItem(SESSION_KEY);
-      return null;
-    }
-    return session;
-  } catch {
-    return null;
-  }
+function notify() {
+  listeners.forEach((l) => l());
 }
-
-function writeSession(session: AuthSession | null) {
-  if (typeof window === "undefined") return;
-  if (session) {
-    localStorage.setItem(SESSION_KEY, JSON.stringify(session));
-  } else {
-    localStorage.removeItem(SESSION_KEY);
-  }
-  sessionListeners.forEach((listener) => listener());
-}
-
-const sessionListeners = new Set<() => void>();
 
 export function subscribeAuth(listener: () => void) {
-  sessionListeners.add(listener);
-  return () => sessionListeners.delete(listener);
+  listeners.add(listener);
+  return () => listeners.delete(listener);
 }
 
 export function getSessionSnapshot(): AuthSession | null {
-  return readSession();
+  return session;
 }
 
 export function getSessionServerSnapshot(): null {
   return null;
 }
 
-export function getUsers(): User[] {
-  return usersStore.read();
+export async function refreshSession(): Promise<AuthSession | null> {
+  if (loading) return session;
+  loading = true;
+  try {
+    const res = await fetch("/api/auth/session", { cache: "no-store" });
+    if (res.ok) {
+      const data = await res.json();
+      session = data.session ?? null;
+      loaded = true;
+      notify();
+    }
+  } finally {
+    loading = false;
+  }
+  return session;
 }
 
-export function login(
+export async function login(
   email: string,
   password: string,
   role: UserRole
-): { ok: true; session: AuthSession } | { ok: false; error: string } {
-  const user = getUsers().find(
-    (u) => u.email.toLowerCase() === email.toLowerCase() && u.role === role
-  );
+): Promise<{ ok: true; session: AuthSession } | { ok: false; error: string }> {
+  const res = await fetch("/api/auth/login", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email, password, role }),
+  });
 
-  if (!user) {
-    return { ok: false, error: "Invalid email or role" };
-  }
-  if (!user.isActive) {
-    return { ok: false, error: "Account is deactivated" };
-  }
-  if (user.password !== password) {
-    return { ok: false, error: "Incorrect password" };
+  const data = await res.json();
+  if (!res.ok) {
+    return { ok: false, error: data.error ?? "Login failed" };
   }
 
-  const session: AuthSession = {
-    userId: user.id,
-    role: user.role,
-    name: user.name,
-    email: user.email,
-    agentCode: user.agentCode,
-    expiresAt: Date.now() + SESSION_HOURS * 60 * 60 * 1000,
-  };
-
-  writeSession(session);
-  return { ok: true, session };
+  session = data.session;
+  notify();
+  return { ok: true, session: data.session };
 }
 
-export function logout(): void {
-  writeSession(null);
+export async function logout(): Promise<void> {
+  await fetch("/api/auth/session", { method: "DELETE" });
+  session = null;
+  notify();
 }
 
 export function getDemoCredentials(role: UserRole) {

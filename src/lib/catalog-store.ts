@@ -1,43 +1,65 @@
 "use client";
 
 import { SEED_STATIONS, SEED_TRAINS } from "@/data/seed-data";
-import { createStore } from "@/lib/storage";
 import type { Station, Train } from "@/types";
 
-const CATALOG_KEY = "ir-demo-catalog";
-
-interface Catalog {
+export interface Catalog {
   stations: Station[];
   trains: Train[];
 }
 
-const catalogStore = createStore<Catalog>(CATALOG_KEY, () => ({
-  stations: SEED_STATIONS,
-  trains: SEED_TRAINS,
-}));
+const listeners = new Set<() => void>();
+let cache: Catalog = { stations: SEED_STATIONS, trains: SEED_TRAINS };
+let loading = false;
+let loaded = false;
+
+function notify() {
+  listeners.forEach((l) => l());
+}
 
 export function subscribeCatalog(listener: () => void) {
-  return catalogStore.subscribe(listener);
+  listeners.add(listener);
+  return () => listeners.delete(listener);
 }
 
 export function getCatalogSnapshot(): Catalog {
-  return catalogStore.getSnapshot();
+  return cache;
 }
 
 export function getCatalogServerSnapshot(): Catalog {
-  return catalogStore.getServerSnapshot();
+  return { stations: SEED_STATIONS, trains: SEED_TRAINS };
+}
+
+export function isCatalogLoaded() {
+  return loaded;
+}
+
+export async function loadCatalog(): Promise<Catalog> {
+  if (loading) return cache;
+  loading = true;
+  try {
+    const res = await fetch("/api/catalog", { cache: "no-store" });
+    if (res.ok) {
+      cache = await res.json();
+      loaded = true;
+      notify();
+    }
+  } finally {
+    loading = false;
+  }
+  return cache;
 }
 
 export function getStations(): Station[] {
-  return catalogStore.read().stations;
+  return cache.stations;
 }
 
 export function getTrains(): Train[] {
-  return catalogStore.read().trains;
+  return cache.trains;
 }
 
 export function getStation(code: string): Station | undefined {
-  return getStations().find((s) => s.code === code);
+  return cache.stations.find((s) => s.code === code);
 }
 
 export function getStationLabel(code: string): string {
@@ -45,50 +67,44 @@ export function getStationLabel(code: string): string {
   return station ? `${station.name} (${station.code})` : code;
 }
 
-export function saveStation(station: Station): void {
-  const catalog = catalogStore.read();
-  const index = catalog.stations.findIndex((s) => s.code === station.code);
-  if (index >= 0) {
-    catalog.stations[index] = station;
-  } else {
-    catalog.stations.push(station);
-  }
-  catalog.stations.sort((a, b) => a.code.localeCompare(b.code));
-  catalogStore.write({ ...catalog });
+export async function saveStation(station: Station): Promise<void> {
+  const res = await fetch("/api/catalog", {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ type: "station", data: station }),
+  });
+  if (!res.ok) throw new Error("Failed to save station");
+  cache = await res.json();
+  notify();
 }
 
-export function deleteStation(code: string): boolean {
-  const catalog = catalogStore.read();
-  const usedByTrain = catalog.trains.some(
-    (t) =>
-      t.source === code ||
-      t.destination === code ||
-      t.schedule.some((s) => s.stationCode === code)
-  );
-  if (usedByTrain) return false;
-  catalogStore.write({
-    ...catalog,
-    stations: catalog.stations.filter((s) => s.code !== code),
+export async function deleteStation(code: string): Promise<boolean> {
+  const res = await fetch(`/api/catalog?station=${encodeURIComponent(code)}`, {
+    method: "DELETE",
   });
+  if (res.status === 409) return false;
+  if (!res.ok) throw new Error("Failed to delete station");
+  cache = await res.json();
+  notify();
   return true;
 }
 
-export function saveTrain(train: Train): void {
-  const catalog = catalogStore.read();
-  const index = catalog.trains.findIndex((t) => t.number === train.number);
-  if (index >= 0) {
-    catalog.trains[index] = train;
-  } else {
-    catalog.trains.push(train);
-  }
-  catalog.trains.sort((a, b) => a.number.localeCompare(b.number));
-  catalogStore.write({ ...catalog });
+export async function saveTrain(train: Train): Promise<void> {
+  const res = await fetch("/api/catalog", {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ type: "train", data: train }),
+  });
+  if (!res.ok) throw new Error("Failed to save train");
+  cache = await res.json();
+  notify();
 }
 
-export function deleteTrain(number: string): void {
-  const catalog = catalogStore.read();
-  catalogStore.write({
-    ...catalog,
-    trains: catalog.trains.filter((t) => t.number !== number),
+export async function deleteTrain(number: string): Promise<void> {
+  const res = await fetch(`/api/catalog?train=${encodeURIComponent(number)}`, {
+    method: "DELETE",
   });
+  if (!res.ok) throw new Error("Failed to delete train");
+  cache = await res.json();
+  notify();
 }
