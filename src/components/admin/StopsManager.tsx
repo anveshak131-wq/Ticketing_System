@@ -101,9 +101,9 @@ export function StopsManager() {
                       </div>
                       {(isSource || isDestination) && (
                         <div className="mt-1">
-                          {isSource && <Badge variant="outline">Source</Badge>}
+                          {isSource && <Badge variant="success">Source</Badge>}
                           {isDestination && (
-                            <Badge variant="outline" className="ml-1">
+                            <Badge variant="warning" className="ml-1">
                               Destination
                             </Badge>
                           )}
