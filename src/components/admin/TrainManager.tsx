@@ -370,8 +370,6 @@ export function TrainManager() {
                           value={stop.departure ?? ""}
                           onChange={(e) => updateStop(index, "departure", e.target.value || null)}
                           className="text-sm"
-                          disabled={isDestination}
-                          title={isDestination ? "Destination station has no departure" : ""}
                         />
                       </div>
 
