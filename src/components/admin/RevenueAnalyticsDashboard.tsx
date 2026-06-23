@@ -35,6 +35,8 @@ export function RevenueAnalyticsDashboard() {
   const cancellationTrends = getCancellationTrends(reservations, startDate, endDate);
   const routePerformance = getRoutePerformance(reservations, startDate, endDate);
   const agentRevenue = getRevenueByAgent(reservations, startDate, endDate);
+  const hasRevenueByClass = Object.values(report.revenueByClass).some((value) => value > 0);
+  const hasCancellationTrends = Object.keys(cancellationTrends).length > 0;
 
   const handleDatePeriod = (p: "week" | "month" | "custom") => {
     setPeriod(p);
@@ -68,8 +70,6 @@ export function RevenueAnalyticsDashboard() {
           </p>
         </motion.div>
       )}
-      {!isEmpty && (
-        <>
       {/* Controls */}
       <motion.div
         initial={{ opacity: 0, y: 10 }}
@@ -176,9 +176,14 @@ export function RevenueAnalyticsDashboard() {
       >
         <h4 className="font-semibold mb-4">Revenue by Class</h4>
         <div className="space-y-3">
+          {!hasRevenueByClass && (
+            <p className="rounded-lg border border-dashed border-border p-4 text-sm text-muted">
+              No revenue in the selected date range.
+            </p>
+          )}
           {Object.entries(report.revenueByClass)
-            .filter(([_, value]) => value > 0)
-            .sort(([_, a], [__, b]) => b - a)
+            .filter(([, value]) => value > 0)
+            .sort(([, a], [, b]) => b - a)
             .map(([cls, value]) => {
               const maxRevenue = Math.max(
                 ...Object.values(report.revenueByClass)
@@ -222,6 +227,13 @@ export function RevenueAnalyticsDashboard() {
               </tr>
             </thead>
             <tbody>
+              {routePerformance.length === 0 && (
+                <tr>
+                  <td colSpan={5} className="py-6 text-center text-muted">
+                    No route bookings in the selected date range.
+                  </td>
+                </tr>
+              )}
               {routePerformance.map((route) => (
                 <tr key={route.route} className="border-b border-border hover:bg-foreground/5">
                   <td className="py-3 px-3 font-medium">{route.route}</td>
@@ -251,7 +263,7 @@ export function RevenueAnalyticsDashboard() {
           <h4 className="font-semibold mb-4">Agent Performance</h4>
           <div className="space-y-3">
             {Object.entries(agentRevenue)
-              .sort(([_, a], [__, b]) => b - a)
+              .sort(([, a], [, b]) => b - a)
               .map(([agentCode, revenue]) => (
                 <div
                   key={agentCode}
@@ -274,6 +286,11 @@ export function RevenueAnalyticsDashboard() {
       >
         <h4 className="font-semibold mb-4">Cancellation Trends</h4>
         <div className="space-y-2 max-h-64 overflow-y-auto">
+          {!hasCancellationTrends && (
+            <p className="rounded-lg border border-dashed border-border p-4 text-sm text-muted">
+              No cancellation activity in the selected date range.
+            </p>
+          )}
           {Object.entries(cancellationTrends)
             .reverse()
             .map(([date, data]) => (
@@ -292,8 +309,6 @@ export function RevenueAnalyticsDashboard() {
             ))}
         </div>
       </motion.div>
-        </>
-      )}
     </div>
   );
 }

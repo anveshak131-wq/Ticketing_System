@@ -1,5 +1,19 @@
 import type { Reservation, RevenueReport, TravelClass } from "@/types";
 
+function getDateBoundary(date: string, boundary: "start" | "end"): number {
+  const [year, month, day] = date.split("-").map(Number);
+  if (!year || !month || !day) {
+    return new Date(date).getTime();
+  }
+
+  const hours = boundary === "start" ? 0 : 23;
+  const minutes = boundary === "start" ? 0 : 59;
+  const seconds = boundary === "start" ? 0 : 59;
+  const milliseconds = boundary === "start" ? 0 : 999;
+
+  return new Date(year, month - 1, day, hours, minutes, seconds, milliseconds).getTime();
+}
+
 /**
  * Calculate revenue metrics for a period
  */
@@ -14,8 +28,8 @@ export function calculateRevenueMetrics(
     agentCode?: string;
   }
 ): RevenueReport {
-  const start = new Date(startDate).getTime();
-  const end = new Date(endDate).getTime();
+  const start = getDateBoundary(startDate, "start");
+  const end = getDateBoundary(endDate, "end");
 
   const filtered = reservations.filter((r) => {
     const bookDate = new Date(r.bookedAt).getTime();
@@ -77,8 +91,8 @@ export function getRevenueByAgent(
   startDate: string,
   endDate: string
 ): Record<string, number> {
-  const start = new Date(startDate).getTime();
-  const end = new Date(endDate).getTime();
+  const start = getDateBoundary(startDate, "start");
+  const end = getDateBoundary(endDate, "end");
 
   const revenueByAgent: Record<string, number> = {};
 
@@ -101,15 +115,18 @@ export function getCancellationTrends(
   endDate: string,
   groupByDays: boolean = true
 ): Record<string, { cancelled: number; confirmed: number; rate: number }> {
-  const start = new Date(startDate).getTime();
-  const end = new Date(endDate).getTime();
+  const start = getDateBoundary(startDate, "start");
+  const end = getDateBoundary(endDate, "end");
 
   const trends: Record<string, { cancelled: number; confirmed: number; rate: number }> = {};
 
   reservations.forEach((r) => {
     const bookDate = new Date(r.bookedAt);
     if (bookDate.getTime() >= start && bookDate.getTime() <= end) {
-      const key = groupByDays ? bookDate.toISOString().split("T")[0] : bookDate.toISOString().split("T")[0].substring(0, 7);
+      const year = bookDate.getFullYear();
+      const month = String(bookDate.getMonth() + 1).padStart(2, "0");
+      const day = String(bookDate.getDate()).padStart(2, "0");
+      const key = groupByDays ? `${year}-${month}-${day}` : `${year}-${month}`;
 
       if (!trends[key]) {
         trends[key] = { cancelled: 0, confirmed: 0, rate: 0 };
@@ -149,8 +166,8 @@ export function getRoutePerformance(
     revenue: number;
   }>();
 
-  const start = new Date(startDate).getTime();
-  const end = new Date(endDate).getTime();
+  const start = getDateBoundary(startDate, "start");
+  const end = getDateBoundary(endDate, "end");
 
   reservations.forEach((r) => {
     const bookDate = new Date(r.bookedAt).getTime();
@@ -215,8 +232,8 @@ export function getPeakHours(
   startDate: string,
   endDate: string
 ): Array<{ hour: string; bookings: number; revenue: number }> {
-  const start = new Date(startDate).getTime();
-  const end = new Date(endDate).getTime();
+  const start = getDateBoundary(startDate, "start");
+  const end = getDateBoundary(endDate, "end");
 
   const hourlyData = new Map<number, { bookings: number; revenue: number }>();
 
