@@ -92,7 +92,7 @@ export function TrainManager() {
       ...prev,
       schedule: [
         ...prev.schedule.slice(0, -1),
-        { stationCode: stations[0]?.code ?? "NDLS", arrival: "00:00", departure: "00:05", day: 1, distance: 0 },
+        { stationCode: "", arrival: "00:00", departure: "00:05", day: 1, distance: 0 },
         prev.schedule[prev.schedule.length - 1], // Re-add destination as last stop
       ],
     }));
@@ -131,6 +131,15 @@ export function TrainManager() {
     }
     if (!editingNumber && trains.some((t) => t.number === form.number)) {
       setError("Train number already exists");
+      return;
+    }
+
+    // Validate all intermediate stops have a station selected
+    const hasMissingStation = form.schedule.some(
+      (stop, i) => i !== 0 && i !== form.schedule.length - 1 && !stop.stationCode
+    );
+    if (hasMissingStation) {
+      setError("All intermediate stops must have a station selected");
       return;
     }
 
@@ -294,6 +303,7 @@ export function TrainManager() {
                           disabled={isSource || isDestination}
                           className="w-full rounded-lg border border-border bg-card px-3 py-2 text-sm font-medium disabled:opacity-60"
                         >
+                          <option value="" disabled>Select station...</option>
                           {stations.map((s) => (
                             <option key={s.code} value={s.code}>
                               {s.code} - {s.name}
