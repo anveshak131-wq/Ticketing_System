@@ -51,8 +51,25 @@ export function RevenueAnalyticsDashboard() {
     setEndDate(today.toISOString().split("T")[0]);
   };
 
+  const isEmpty = reservations.length === 0;
+
   return (
     <div className="space-y-6">
+      {isEmpty && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          className="rounded-2xl border border-dashed border-border bg-card p-8 text-center"
+        >
+          <BarChart3 className="mx-auto h-12 w-12 text-muted mb-4" />
+          <p className="font-semibold text-lg">No Data Available</p>
+          <p className="text-sm text-muted mt-2">
+            Analytics will appear here once bookings are made
+          </p>
+        </motion.div>
+      )}
+      {!isEmpty && (
+        <>
       {/* Controls */}
       <motion.div
         initial={{ opacity: 0, y: 10 }}
@@ -275,6 +292,8 @@ export function RevenueAnalyticsDashboard() {
             ))}
         </div>
       </motion.div>
+        </>
+      )}
     </div>
   );
 }

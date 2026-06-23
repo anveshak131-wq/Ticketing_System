@@ -84,21 +84,36 @@ export function TrainManager() {
   };
 
   const addStop = () => {
+    if (form.schedule.length >= 20) {
+      setError("Maximum 20 stops allowed");
+      return;
+    }
     setForm((prev) => ({
       ...prev,
       schedule: [
-        ...prev.schedule,
+        ...prev.schedule.slice(0, -1),
         { stationCode: stations[0]?.code ?? "NDLS", arrival: "00:00", departure: "00:05", day: 1, distance: 0 },
+        prev.schedule[prev.schedule.length - 1], // Re-add destination as last stop
       ],
     }));
+    setError("");
   };
 
   const removeStop = (index: number) => {
-    if (form.schedule.length <= 2) return;
+    if (form.schedule.length <= 2) {
+      setError("Need at least 2 stops (source and destination)");
+      return;
+    }
+    const stop = form.schedule[index];
+    if (stop.stationCode === form.source || stop.stationCode === form.destination) {
+      setError("Cannot delete source or destination stations");
+      return;
+    }
     setForm((prev) => ({
       ...prev,
       schedule: prev.schedule.filter((_, i) => i !== index),
     }));
+    setError("");
   };
 
   const handleSave = async () => {
@@ -344,9 +359,13 @@ export function TrainManager() {
                         </div>
                         <button
                           type="button"
-                          onClick={() => removeStop(index)}
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            removeStop(index);
+                          }}
                           disabled={form.schedule.length <= 2 || isSource || isDestination}
-                          className="rounded-lg p-2 text-danger hover:bg-danger/10 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                          className="rounded-lg p-2 text-danger hover:bg-danger/10 disabled:opacity-40 disabled:cursor-not-allowed transition-colors active:scale-95"
                           title={
                             form.schedule.length <= 2
                               ? "Need at least 2 stops"
