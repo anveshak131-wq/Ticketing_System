@@ -1,6 +1,6 @@
 export type TravelClass = "SL" | "3A" | "2A" | "1A" | "CC" | "2S";
 
-export type StationNetwork = "intercity" | "metro" | "local";
+export type StationNetwork = "intercity" | "metro" | "local" | "hyderabad-metro";
 
 export type TrainCategory = "intercity" | "metro" | "local";
 
