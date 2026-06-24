@@ -14,10 +14,13 @@ function normalizeCatalog(catalog: Catalog): Catalog {
       ...s,
       network: getStationNetwork(s),
     })),
-    trains: catalog.trains.map((t) => ({
-      ...t,
-      category: getTrainCategory(t),
-    })),
+    trains: catalog.trains.map((t) => {
+      const { baseFares: _fare, ...train } = t;
+      return {
+        ...train,
+        category: getTrainCategory(t),
+      };
+    }),
   };
 }
 

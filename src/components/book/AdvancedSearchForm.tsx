@@ -3,6 +3,7 @@
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { useCatalog } from "@/hooks/use-catalog";
+import { calculateComputedFare } from "@/lib/fare-calculator";
 import type { TrainSearchParams, TrainSearchResult } from "@/types";
 import type { TravelClass } from "@/types";
 import { motion } from "framer-motion";
@@ -44,7 +45,13 @@ export function AdvancedSearchForm({ onSearch }: AdvancedSearchProps) {
           train.classes.includes(selectedClass)
       )
       .map((train) => {
-        const baseFare = train.baseFares[selectedClass] || 0;
+        const baseFare = calculateComputedFare(
+          train,
+          params.fromStation,
+          params.toStation,
+          selectedClass,
+          params.travelDate
+        );
         const availableSeats = 50; // Mock value - would calculate from seat inventory
         return {
           ...train,

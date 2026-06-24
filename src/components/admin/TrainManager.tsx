@@ -5,6 +5,8 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { useCatalog } from "@/hooks/use-catalog";
 import { deleteTrain, saveTrain } from "@/lib/catalog-store";
+import { getFareBreakdown } from "@/lib/fare-calculator";
+import { formatCurrency } from "@/lib/utils";
 import { CLASS_LABELS, NETWORK_LABELS, type Train, type TrainCategory, type TrainScheduleStop, type TravelClass } from "@/types";
 import { motion } from "framer-motion";
 import { Pencil, Plus, Search, Trash2 } from "lucide-react";
@@ -26,7 +28,6 @@ function emptyTrain(): Train {
     duration: "6h 00m",
     runsOn: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
     classes: ["3A"],
-    baseFares: { "3A": 1000 },
     seatCapacity: { "3A": { UB: 20, MB: 20, LB: 20 } },
     schedule: [
       { stationCode: "NDLS", arrival: null, departure: "06:00", day: 1, distance: 0 },
@@ -70,10 +71,7 @@ export function TrainManager() {
     setForm((prev) => {
       const has = prev.classes.includes(cls);
       const classes = has ? prev.classes.filter((c) => c !== cls) : [...prev.classes, cls];
-      const baseFares = { ...prev.baseFares };
-      if (!has) baseFares[cls] = baseFares[cls] ?? 500;
-      if (has) delete baseFares[cls];
-      return { ...prev, classes, baseFares };
+      return { ...prev, classes };
     });
   };
 
@@ -170,8 +168,9 @@ export function TrainManager() {
     }
 
     try {
+      const { baseFares: _removed, ...trainWithoutFares } = form;
       await saveTrain({
-        ...form,
+        ...trainWithoutFares,
         number: form.number.trim(),
         source: form.schedule[0].stationCode,
         destination: form.schedule[form.schedule.length - 1].stationCode,
@@ -287,23 +286,40 @@ export function TrainManager() {
           </div>
 
           <div>
-            <p className="mb-2 text-sm font-medium">Classes & Fares</p>
+            <p className="mb-2 text-sm font-medium">Classes</p>
+            <p className="mb-3 text-xs text-muted">
+              Fares are computed automatically from distance, class, train type, and demand.
+            </p>
             <div className="grid gap-2 sm:grid-cols-2">
               {ALL_CLASSES.map((cls) => (
                 <label key={cls} className="flex items-center gap-3 rounded-lg border border-border px-3 py-2">
                   <input type="checkbox" checked={form.classes.includes(cls)} onChange={() => toggleClass(cls)} />
                   <span className="flex-1 text-sm">{CLASS_LABELS[cls]}</span>
-                  {form.classes.includes(cls) && (
-                    <input
-                      type="number"
-                      className="w-20 rounded-lg border border-border bg-card px-2 py-1 text-sm"
-                      value={form.baseFares[cls] ?? 0}
-                      onChange={(e) => setForm({ ...form, baseFares: { ...form.baseFares, [cls]: Number(e.target.value) } })}
-                    />
-                  )}
                 </label>
               ))}
             </div>
+            {form.classes.length > 0 && form.schedule.length >= 2 && (
+              <div className="mt-4 rounded-xl border border-border bg-foreground/5 p-4">
+                <p className="text-sm font-medium">Sample fares (full route, today)</p>
+                <ul className="mt-2 space-y-1 text-sm text-muted">
+                  {form.classes.map((cls) => {
+                    const preview = getFareBreakdown(
+                      form,
+                      form.schedule[0].stationCode,
+                      form.schedule[form.schedule.length - 1].stationCode,
+                      cls,
+                      new Date().toISOString().split("T")[0]
+                    );
+                    return (
+                      <li key={cls}>
+                        {CLASS_LABELS[cls]}: {formatCurrency(preview.baseFare)}
+                        <span className="text-xs"> ({preview.distanceKm} km)</span>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </div>
+            )}
           </div>
 
           <div>

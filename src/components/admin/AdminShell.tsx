@@ -22,7 +22,7 @@ import { usePathname, useRouter } from "next/navigation";
 const nav = [
   { href: "/admin/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/admin/analytics", label: "Analytics", icon: BarChart3 },
-  { href: "/admin/pricing", label: "Pricing", icon: DollarSign },
+  { href: "/admin/pricing", label: "Fare Engine", icon: DollarSign },
   { href: "/admin/stations", label: "Stations", icon: MapPin },
   { href: "/admin/trains", label: "Trains", icon: Train },
   { href: "/admin/stops", label: "Stops", icon: Zap },

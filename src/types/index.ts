@@ -68,8 +68,9 @@ export interface Train {
   runsOn: string[];
   classes: TravelClass[];
   schedule: TrainScheduleStop[];
-  baseFares: Partial<Record<TravelClass, number>>;
-  seatCapacity: Partial<Record<TravelClass, Partial<Record<BerthType, number>>>>; // New: seat layout
+  /** @deprecated Fares are computed automatically — not stored or edited by admins */
+  baseFares?: Partial<Record<TravelClass, number>>;
+  seatCapacity: Partial<Record<TravelClass, Partial<Record<BerthType, number>>>>;
   minGroupSize?: number;
   maxGroupSize?: number;
   groupDiscount?: number; // percentage discount for groups

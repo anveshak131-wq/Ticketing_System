@@ -46,7 +46,7 @@ export function searchTrains(
 
       for (const cls of train.classes) {
         const inventory = buildSeatInventory(train, cls, date, reservations);
-        const routeFare = calculateRouteFare(train, from, to, cls);
+        const routeFare = calculateRouteFare(train, from, to, cls, date);
         const occupancyRate = calculateOccupancyRate(inventory);
 
         availableSeats[cls] = getAvailableSeats(inventory);

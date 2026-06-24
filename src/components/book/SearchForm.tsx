@@ -129,7 +129,7 @@ export function SearchForm({
         ) : (
           <div className="flex items-end">
             <p className="text-sm text-muted">
-              Standard class ticket — fare calculated by distance along the route
+              Standard class — fare auto-calculated from route distance and demand
             </p>
           </div>
         )}

@@ -1,16 +1,16 @@
 "use client";
 
-import { PricingRulesManager } from "@/components/admin/PricingRulesManager";
+import { AutoPricingOverview } from "@/components/admin/AutoPricingOverview";
 
 export default function AdminPricingPage() {
   return (
     <div>
-      <h1 className="text-2xl font-bold">Pricing & Promotions</h1>
+      <h1 className="text-2xl font-bold">Dynamic Pricing</h1>
       <p className="mt-1 text-muted">
-        Configure dynamic pricing, promotions, and fare adjustments
+        How fares are calculated automatically for intercity, metro, and local trains
       </p>
       <div className="mt-8">
-        <PricingRulesManager />
+        <AutoPricingOverview />
       </div>
     </div>
   );
