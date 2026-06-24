@@ -587,7 +587,12 @@ function createContentStream(reservation: Reservation): string {
   const detailBoxWidth = 116;
   const details = [
     ["TRAIN", `${reservation.trainName} #${reservation.trainNumber}`],
-    ["DATE", formatDisplayDate(reservation.travelDate)],
+    [
+      "DATE",
+      reservation.departureTime
+        ? `${formatDisplayDate(reservation.travelDate)} ${reservation.departureTime}`
+        : formatDisplayDate(reservation.travelDate),
+    ],
     ["CLASS", CLASS_LABELS[reservation.travelClass]],
     ["FARE", formatFare(reservation.totalFare)],
   ];

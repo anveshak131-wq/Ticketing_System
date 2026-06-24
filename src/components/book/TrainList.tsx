@@ -15,9 +15,19 @@ interface TrainListProps {
   onSelect: (train: TrainSearchResult) => void;
   from: string;
   to: string;
+  urbanServices?: boolean;
+  preferredTime?: string;
 }
 
-export function TrainList({ trains, selectedClass, onSelect, from, to }: TrainListProps) {
+export function TrainList({
+  trains,
+  selectedClass,
+  onSelect,
+  from,
+  to,
+  urbanServices,
+  preferredTime,
+}: TrainListProps) {
   if (trains.length === 0) {
     return (
       <motion.div
@@ -37,8 +47,9 @@ export function TrainList({ trains, selectedClass, onSelect, from, to }: TrainLi
   return (
     <div className="space-y-4">
       <p className="text-sm text-muted">
-        {trains.length} train{trains.length !== 1 ? "s" : ""} from{" "}
-        {getStationLabel(from)} to {getStationLabel(to)}
+        {trains.length} {urbanServices ? "departure" : "train"}
+        {trains.length !== 1 ? "s" : ""} from {getStationLabel(from)} to {getStationLabel(to)}
+        {urbanServices && preferredTime ? ` · from ${preferredTime}` : ""}
       </p>
       <AnimatePresence>
         {trains.map((train, i) => {
@@ -52,7 +63,7 @@ export function TrainList({ trains, selectedClass, onSelect, from, to }: TrainLi
 
           return (
             <motion.div
-              key={train.number}
+              key={train.serviceKey ?? train.number}
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: i * 0.05 }}

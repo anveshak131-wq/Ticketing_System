@@ -25,6 +25,9 @@ interface SearchFormProps {
   city?: string;
   cities?: string[];
   onCityChange?: (city: string) => void;
+  travelTime?: string;
+  onTravelTimeChange?: (time: string) => void;
+  serviceSummary?: string;
 }
 
 export function SearchForm({
@@ -43,6 +46,9 @@ export function SearchForm({
   city,
   cities,
   onCityChange,
+  travelTime,
+  onTravelTimeChange,
+  serviceSummary,
 }: SearchFormProps) {
   const { stations } = useCatalog();
   const minDate = useMemo(() => new Date().toISOString().split("T")[0], []);
@@ -157,18 +163,27 @@ export function SearchForm({
             </select>
           </div>
         ) : (
-          <div className="flex items-end">
-            <p className="text-sm text-muted">
-              Standard class — fare auto-calculated from route distance and demand
-            </p>
-          </div>
+          <>
+            <Input
+              label="Preferred Time"
+              type="time"
+              value={travelTime ?? "09:00"}
+              onChange={(e) => onTravelTimeChange?.(e.target.value)}
+            />
+            <div className="flex items-end">
+              <p className="text-sm text-muted">
+                {serviceSummary ??
+                  "Frequent services through the day — showing next departures from your chosen time"}
+              </p>
+            </div>
+          </>
         )}
       </div>
 
       <Button
         className="mt-6 w-full sm:w-auto"
         onClick={onSearch}
-        disabled={loading || !from || !to || !date || from === to}
+        disabled={loading || !from || !to || !date || from === to || (stationNetwork && stationNetwork !== "intercity" && !travelTime)}
       >
         {loading ? (
           <span className="shimmer inline-block rounded px-8 py-0.5">Searching trains...</span>

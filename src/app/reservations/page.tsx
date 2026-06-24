@@ -200,7 +200,12 @@ function ReservationsContent() {
                     <Calendar className="mt-0.5 h-5 w-5 text-primary" />
                     <div>
                       <p className="text-sm text-muted">Travel Date</p>
-                      <p className="font-semibold">{formatDate(reservation.travelDate)}</p>
+                      <p className="font-semibold">
+                        {formatDate(reservation.travelDate)}
+                        {reservation.departureTime
+                          ? ` · ${reservation.departureTime}`
+                          : ""}
+                      </p>
                     </div>
                   </div>
                   <div className="flex items-start gap-3 sm:col-span-2">

@@ -37,9 +37,24 @@ function mergeUrbanSeed(catalog: Catalog): Catalog {
 
   for (const train of SEED_TRAINS) {
     if (getTrainCategory(train) === "intercity") continue;
-    if (!next.trains.some((t) => t.number === train.number)) {
+    const existingIdx = next.trains.findIndex((t) => t.number === train.number);
+    if (existingIdx === -1) {
       next.trains.push(train);
+      continue;
     }
+
+    next.trains[existingIdx] = {
+      ...next.trains[existingIdx],
+      schedule: train.schedule,
+      departureTime: train.departureTime,
+      arrivalTime: train.arrivalTime,
+      duration: train.duration,
+      firstService: train.firstService,
+      lastService: train.lastService,
+      sundayFirstService: train.sundayFirstService,
+      peakFrequencyMinutes: train.peakFrequencyMinutes,
+      offPeakFrequencyMinutes: train.offPeakFrequencyMinutes,
+    };
   }
 
   next.stations.sort((a, b) => a.code.localeCompare(b.code));
@@ -69,7 +84,13 @@ export async function getCatalog(): Promise<Catalog> {
   await ensureSeeded();
   let catalog = normalizeCatalog((await kvGet<Catalog>(KV_KEYS.catalog))!);
 
-  const needsUrbanSeed = !catalog.stations.some((s) => s.network === "metro");
+  const needsUrbanSeed =
+    !catalog.stations.some((s) => s.network === "metro") ||
+    catalog.trains.some(
+      (train) =>
+        getTrainCategory(train) !== "intercity" &&
+        train.firstService === undefined
+    );
   if (needsUrbanSeed) {
     catalog = mergeUrbanSeed(catalog);
     await saveCatalog(catalog);

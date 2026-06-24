@@ -23,6 +23,7 @@ import { buildBerthPreferenceCounts, buildSeatInventory } from "@/lib/seat-avail
 import { bookSeats } from "@/lib/seat-management";
 import type { BookingType, Passenger, Reservation, StationNetwork, TrainSearchResult } from "@/types";
 import { BOOKING_TYPE_LABELS } from "@/types";
+import { getUrbanServiceSummary } from "@/lib/urban-service-schedule";
 import { AnimatePresence, motion } from "framer-motion";
 import { CheckCircle2, Copy, Download, Ticket, Train } from "lucide-react";
 import Link from "next/link";
@@ -49,6 +50,7 @@ export function MetroBookingWizard() {
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
   const [date, setDate] = useState("");
+  const [travelTime, setTravelTime] = useState("09:00");
   const travelClass = "2S" as const;
   const [results, setResults] = useState<TrainSearchResult[]>([]);
   const [selectedTrain, setSelectedTrain] = useState<TrainSearchResult | null>(null);
@@ -138,7 +140,11 @@ export function MetroBookingWizard() {
     setConfirmedSeats([]);
     await new Promise((r) => setTimeout(r, 600));
     setResults(
-      searchTrains(from, to, date, reservations, { category: bookingType })
+      searchTrains(from, to, date, reservations, {
+        category: bookingType,
+        preferredTime: travelTime,
+        maxResults: 24,
+      })
     );
     setLoading(false);
     setStep(1);
@@ -157,7 +163,8 @@ export function MetroBookingWizard() {
       selectedTrain,
       travelClass,
       date,
-      reservations
+      reservations,
+      selectedTrain.departureTime
     );
     const allocation = bookSeats(
       inventory,
@@ -182,6 +189,7 @@ export function MetroBookingWizard() {
       fromName: getStationLabel(from),
       toName: getStationLabel(to),
       travelDate: date,
+      departureTime: selectedTrain.departureTime,
       travelClass,
       passengers,
       totalFare,
@@ -263,6 +271,9 @@ export function MetroBookingWizard() {
                   city={city}
                   cities={availableCities}
                   onCityChange={setCity}
+                  travelTime={travelTime}
+                  onTravelTimeChange={setTravelTime}
+                  serviceSummary={getUrbanServiceSummary(bookingType)}
                   searchLabel={
                     network === "metro" ? "Search Metro Services" : "Search Local Trains"
                   }
@@ -282,6 +293,8 @@ export function MetroBookingWizard() {
                 onSelect={handleSelectTrain}
                 from={from}
                 to={to}
+                urbanServices
+                preferredTime={travelTime}
               />
               <Button variant="outline" className="mt-6" onClick={() => setStep(0)}>
                 Modify Search
@@ -299,8 +312,8 @@ export function MetroBookingWizard() {
                   <Badge variant="default">{city}</Badge>
                 </div>
                 <p className="mt-2 text-sm text-muted">
-                  {formatDate(date)} · {getStationLabel(from)} → {getStationLabel(to)} ·{" "}
-                  {formatCurrency(fareQuote.unitPrice)} per ticket
+                  {formatDate(date)} · {selectedTrain.departureTime} · {getStationLabel(from)} →{" "}
+                  {getStationLabel(to)} · {formatCurrency(fareQuote.unitPrice)} per ticket
                 </p>
                 <div className="mt-3">
                   <Badge variant={selectedAvailableSeats > 10 ? "success" : "warning"}>
@@ -343,6 +356,10 @@ export function MetroBookingWizard() {
                   <span className="font-medium">
                     {selectedTrain.name} ({selectedTrain.number})
                   </span>
+                </div>
+                <div className="flex justify-between border-b border-border pb-2">
+                  <span className="text-muted">Departure</span>
+                  <span className="font-medium">{selectedTrain.departureTime}</span>
                 </div>
                 <div className="flex justify-between border-b border-border pb-2">
                   <span className="text-muted">Route</span>

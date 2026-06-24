@@ -84,18 +84,32 @@ export function buildSeatInventory(
   train: Train,
   travelClass: TravelClass,
   travelDate: string,
-  reservations: Reservation[] = []
+  reservations: Reservation[] = [],
+  departureTime?: string
 ): SeatInventory[] {
   const inventory = initializeSeatInventory(train, travelClass, travelDate);
 
   reservations
-    .filter(
-      (reservation) =>
-        reservation.trainNumber === train.number &&
-        reservation.travelDate === travelDate &&
-        reservation.travelClass === travelClass &&
-        ACTIVE_BOOKING_STATUSES.has(reservation.status)
-    )
+    .filter((reservation) => {
+      if (
+        reservation.trainNumber !== train.number ||
+        reservation.travelDate !== travelDate ||
+        reservation.travelClass !== travelClass ||
+        !ACTIVE_BOOKING_STATUSES.has(reservation.status)
+      ) {
+        return false;
+      }
+
+      if (!departureTime) return true;
+
+      const reservationDeparture =
+        reservation.departureTime ??
+        (reservation.bookingType === "metro" || reservation.bookingType === "local"
+          ? undefined
+          : train.departureTime);
+
+      return reservationDeparture === departureTime;
+    })
     .forEach((reservation) => applyReservationToInventory(inventory, reservation));
 
   return inventory;

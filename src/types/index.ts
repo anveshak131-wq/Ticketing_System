@@ -74,6 +74,16 @@ export interface Train {
   minGroupSize?: number;
   maxGroupSize?: number;
   groupDiscount?: number; // percentage discount for groups
+  /** Metro/local: first departure of the day (weekdays) */
+  firstService?: string;
+  /** Metro/local: last departure of the day */
+  lastService?: string;
+  /** Metro/local: Sunday/holiday first departure */
+  sundayFirstService?: string;
+  /** Minutes between trains during peak hours */
+  peakFrequencyMinutes?: number;
+  /** Minutes between trains during off-peak hours */
+  offPeakFrequencyMinutes?: number;
 }
 
 export interface Passenger {
@@ -118,6 +128,8 @@ export interface Reservation {
   toName: string;
   travelDate: string;
   travelClass: TravelClass;
+  /** Boarding time for metro/local services (HH:mm) */
+  departureTime?: string;
   passengers: Passenger[];
   totalFare: number;
   baseFare: number;
@@ -159,6 +171,7 @@ export interface TrainSearchParams {
 }
 
 export interface TrainSearchResult extends Train {
+  serviceKey?: string;
   availableSeats: Partial<Record<TravelClass, number>>;
   availableBerths: Partial<Record<TravelClass, Partial<Record<BerthType, number>>>>;
   fare: Partial<Record<TravelClass, number>>;
