@@ -309,7 +309,7 @@ export function MetroBookingWizard() {
         </div>
 
         <div className="mb-6 flex gap-2">
-          {(["metro", "local"] as StationNetwork[]).map((value) => (
+          {(["metro", "local"] as BookingType[]).map((value) => (
             <button
               key={value}
               type="button"

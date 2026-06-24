@@ -55,6 +55,7 @@ export function calculateRevenueMetrics(
     "1A": 0,
     CC: 0,
     "2S": 0,
+    GEN: 0,
   };
 
   confirmed.forEach((r) => {

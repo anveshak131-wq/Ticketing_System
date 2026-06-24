@@ -8,6 +8,7 @@ const DEFAULT_CAPACITY: Record<TravelClass, Partial<Record<BerthType, number>>> 
   SL: { UB: 14, MB: 14, LB: 15, SU: 14, SL: 15 },
   CC: { SEAT: 80 },
   "2S": { SEAT: 100 },
+  GEN: { SEAT: 300 },
 };
 
 /**

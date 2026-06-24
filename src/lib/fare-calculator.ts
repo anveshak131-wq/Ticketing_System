@@ -19,6 +19,7 @@ const CLASS_MULTIPLIERS: Record<TravelClass, number> = {
   "2A": 1.58,
   "1A": 2.85,
   CC: 0.72,
+  GEN: 0.38,
 };
 
 const TRAIN_TYPE_MULTIPLIERS: Record<string, number> = {

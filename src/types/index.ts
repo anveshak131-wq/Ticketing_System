@@ -1,4 +1,4 @@
-export type TravelClass = "SL" | "3A" | "2A" | "1A" | "CC" | "2S";
+export type TravelClass = "SL" | "3A" | "2A" | "1A" | "CC" | "2S" | "GEN";
 
 export type StationNetwork = "intercity" | "metro" | "local" | "hyderabad-metro";
 
@@ -265,6 +265,7 @@ export const CLASS_LABELS: Record<TravelClass, string> = {
   "1A": "AC First (1A)",
   CC: "Chair Car (CC)",
   "2S": "Second Sitting (2S)",
+  GEN: "General (GEN)",
 };
 
 export const BERTH_LABELS: Record<BerthType, string> = {
@@ -280,6 +281,7 @@ export const NETWORK_LABELS: Record<StationNetwork, string> = {
   intercity: "Intercity",
   metro: "Metro",
   local: "Local Train",
+  "hyderabad-metro": "Hyderabad Metro",
 };
 
 export const BOOKING_TYPE_LABELS: Record<BookingType, string> = {
