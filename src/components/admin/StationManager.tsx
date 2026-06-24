@@ -5,13 +5,165 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { useCatalog } from "@/hooks/use-catalog";
 import { deleteStation, saveStation } from "@/lib/catalog-store";
+import {
+  filterStationsByNetwork,
+  getNetworkCities,
+  getStationNetwork,
+} from "@/lib/station-utils";
 import type { Station, StationNetwork } from "@/types";
 import { NETWORK_LABELS } from "@/types";
 import { motion } from "framer-motion";
 import { Pencil, Plus, Trash2, Check, AlertCircle } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 const emptyStation: Station = { code: "", name: "", city: "", state: "", network: "intercity" };
+
+const NETWORK_FILTERS: Array<{ id: "all" | StationNetwork; label: string }> = [
+  { id: "all", label: "All Networks" },
+  { id: "intercity", label: NETWORK_LABELS.intercity },
+  { id: "metro", label: NETWORK_LABELS.metro },
+  { id: "local", label: NETWORK_LABELS.local },
+];
+
+type StationGroup = {
+  title: string;
+  stations: Station[];
+};
+
+function buildStationGroups(
+  stations: Station[],
+  networkFilter: "all" | StationNetwork,
+  cityFilter: string
+): StationGroup[] {
+  if (networkFilter === "intercity") {
+    return [
+      {
+        title: NETWORK_LABELS.intercity,
+        stations: filterStationsByNetwork(stations, "intercity"),
+      },
+    ];
+  }
+
+  if (networkFilter === "metro" || networkFilter === "local") {
+    const urban = filterStationsByNetwork(stations, networkFilter);
+    const cities =
+      cityFilter === "all"
+        ? getNetworkCities(stations, networkFilter)
+        : urban.some((s) => s.city === cityFilter)
+          ? [cityFilter]
+          : [];
+
+    return cities
+      .map((city) => ({
+        title: city,
+        stations: urban.filter((s) => s.city === city),
+      }))
+      .filter((group) => group.stations.length > 0);
+  }
+
+  const groups: StationGroup[] = [];
+  const intercity = filterStationsByNetwork(stations, "intercity");
+  if (intercity.length > 0) {
+    groups.push({ title: NETWORK_LABELS.intercity, stations: intercity });
+  }
+
+  for (const network of ["metro", "local"] as const) {
+    const urban = filterStationsByNetwork(stations, network);
+    if (urban.length === 0) continue;
+
+    for (const city of getNetworkCities(stations, network)) {
+      const cityStations = urban.filter((s) => s.city === city);
+      if (cityStations.length > 0) {
+        groups.push({
+          title: `${NETWORK_LABELS[network]} — ${city}`,
+          stations: cityStations,
+        });
+      }
+    }
+  }
+
+  return groups;
+}
+
+function StationTable({
+  stations,
+  onEdit,
+  onDelete,
+  creating,
+  editing,
+  isDeleting,
+}: {
+  stations: Station[];
+  onEdit: (station: Station) => void;
+  onDelete: (code: string) => void;
+  creating: boolean;
+  editing: Station | null;
+  isDeleting: string | null;
+}) {
+  if (stations.length === 0) {
+    return (
+      <div className="rounded-2xl border border-border bg-card/50 p-6 text-center text-sm text-muted">
+        No stations match the current filters.
+      </div>
+    );
+  }
+
+  return (
+    <div className="overflow-x-auto rounded-2xl border border-border">
+      <table className="w-full min-w-[640px] text-left text-sm">
+        <thead className="border-b border-border bg-card/80">
+          <tr>
+            <th className="px-4 py-3 font-medium">Code</th>
+            <th className="px-4 py-3 font-medium">Name</th>
+            <th className="px-4 py-3 font-medium">City</th>
+            <th className="px-4 py-3 font-medium">Network</th>
+            <th className="px-4 py-3 font-medium">State</th>
+            <th className="px-4 py-3 font-medium">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {stations.map((station) => (
+            <tr key={station.code} className="border-b border-border last:border-0">
+              <td className="px-4 py-3">
+                <Badge variant="accent">{station.code}</Badge>
+              </td>
+              <td className="px-4 py-3">{station.name}</td>
+              <td className="px-4 py-3 text-muted">{station.city}</td>
+              <td className="px-4 py-3">
+                <Badge variant={getStationNetwork(station) === "intercity" ? "default" : "accent"}>
+                  {NETWORK_LABELS[getStationNetwork(station)]}
+                </Badge>
+              </td>
+              <td className="px-4 py-3 text-muted">{station.state}</td>
+              <td className="px-4 py-3">
+                <div className="flex gap-1">
+                  <button
+                    type="button"
+                    onClick={() => onEdit(station)}
+                    className="rounded-lg p-2 text-primary hover:bg-primary/10 disabled:opacity-50"
+                    aria-label="Edit"
+                    disabled={creating || editing !== null || isDeleting === station.code}
+                  >
+                    <Pencil className="h-4 w-4" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => onDelete(station.code)}
+                    className="rounded-lg p-2 text-danger hover:bg-danger/10 disabled:opacity-50"
+                    aria-label="Delete"
+                    disabled={creating || editing !== null || isDeleting !== null}
+                  >
+                    {isDeleting === station.code ? "..." : <Trash2 className="h-4 w-4" />}
+                  </button>
+                </div>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
 
 export function StationManager() {
   const { stations } = useCatalog();
@@ -22,11 +174,35 @@ export function StationManager() {
   const [success, setSuccess] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const [isDeleting, setIsDeleting] = useState<string | null>(null);
+  const [networkFilter, setNetworkFilter] = useState<"all" | StationNetwork>("all");
+  const [cityFilter, setCityFilter] = useState<string>("all");
+
+  const availableCities = useMemo(() => {
+    if (networkFilter !== "metro" && networkFilter !== "local") return [];
+    return getNetworkCities(stations, networkFilter);
+  }, [stations, networkFilter]);
+
+  useEffect(() => {
+    setCityFilter("all");
+  }, [networkFilter]);
+
+  const stationGroups = useMemo(
+    () => buildStationGroups(stations, networkFilter, cityFilter),
+    [stations, networkFilter, cityFilter]
+  );
+
+  const filteredCount = useMemo(
+    () => stationGroups.reduce((sum, group) => sum + group.stations.length, 0),
+    [stationGroups]
+  );
 
   const openCreate = () => {
     setCreating(true);
     setEditing(null);
-    setForm({ ...emptyStation });
+    setForm({
+      ...emptyStation,
+      network: networkFilter === "all" ? "intercity" : networkFilter,
+    });
     setError("");
     setSuccess("");
   };
@@ -67,8 +243,7 @@ export function StationManager() {
       setCreating(false);
       setEditing(null);
       setSuccess(editing ? "Station updated successfully" : "Station added successfully");
-      
-      // Clear success message after 3 seconds
+
       setTimeout(() => setSuccess(""), 3000);
     } catch (err) {
       console.error("Failed to save station:", err);
@@ -106,12 +281,64 @@ export function StationManager() {
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className="text-sm text-muted">{stations.length} stations</p>
+        <p className="text-sm text-muted">
+          {filteredCount} of {stations.length} stations
+        </p>
         <Button size="sm" onClick={openCreate} disabled={creating || editing !== null}>
           <Plus className="h-4 w-4" />
           Add Station
         </Button>
       </div>
+
+      <div className="flex flex-wrap gap-2">
+        {NETWORK_FILTERS.map((filter) => (
+          <button
+            key={filter.id}
+            type="button"
+            onClick={() => setNetworkFilter(filter.id)}
+            className={`rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
+              networkFilter === filter.id
+                ? "bg-primary text-primary-foreground shadow-md shadow-primary/20"
+                : "border border-border bg-card text-muted hover:text-foreground"
+            }`}
+          >
+            {filter.label}
+          </button>
+        ))}
+      </div>
+
+      {(networkFilter === "metro" || networkFilter === "local") && availableCities.length > 0 && (
+        <div className="space-y-2">
+          <p className="text-sm font-medium text-muted">Filter by place</p>
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => setCityFilter("all")}
+              className={`rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${
+                cityFilter === "all"
+                  ? "bg-blue-600 text-white"
+                  : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+              }`}
+            >
+              All Places
+            </button>
+            {availableCities.map((city) => (
+              <button
+                key={city}
+                type="button"
+                onClick={() => setCityFilter(city)}
+                className={`rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${
+                  cityFilter === city
+                    ? "bg-blue-600 text-white"
+                    : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                }`}
+              >
+                {city}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       {success && (
         <motion.div
@@ -207,58 +434,22 @@ export function StationManager() {
         </motion.div>
       )}
 
-      <div className="overflow-x-auto rounded-2xl border border-border">
-        <table className="w-full min-w-[640px] text-left text-sm">
-          <thead className="border-b border-border bg-card/80">
-            <tr>
-              <th className="px-4 py-3 font-medium">Code</th>
-              <th className="px-4 py-3 font-medium">Name</th>
-              <th className="px-4 py-3 font-medium">City</th>
-              <th className="px-4 py-3 font-medium">Network</th>
-              <th className="px-4 py-3 font-medium">State</th>
-              <th className="px-4 py-3 font-medium">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {stations.map((station) => (
-              <tr key={station.code} className="border-b border-border last:border-0">
-                <td className="px-4 py-3">
-                  <Badge variant="accent">{station.code}</Badge>
-                </td>
-                <td className="px-4 py-3">{station.name}</td>
-                <td className="px-4 py-3 text-muted">{station.city}</td>
-                <td className="px-4 py-3">
-                  <Badge variant={station.network === "intercity" ? "default" : "accent"}>
-                    {NETWORK_LABELS[station.network ?? "intercity"]}
-                  </Badge>
-                </td>
-                <td className="px-4 py-3 text-muted">{station.state}</td>
-                <td className="px-4 py-3">
-                  <div className="flex gap-1">
-                    <button
-                      type="button"
-                      onClick={() => openEdit(station)}
-                      className="rounded-lg p-2 text-primary hover:bg-primary/10 disabled:opacity-50"
-                      aria-label="Edit"
-                      disabled={creating || editing !== null || isDeleting === station.code}
-                    >
-                      <Pencil className="h-4 w-4" />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleDelete(station.code)}
-                      className="rounded-lg p-2 text-danger hover:bg-danger/10 disabled:opacity-50"
-                      aria-label="Delete"
-                      disabled={creating || editing !== null || isDeleting !== null}
-                    >
-                      {isDeleting === station.code ? "..." : <Trash2 className="h-4 w-4" />}
-                    </button>
-                  </div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+      <div className="space-y-6">
+        {stationGroups.map((group) => (
+          <div key={group.title}>
+            <h3 className="mb-3 text-sm font-semibold text-muted">
+              {group.title} ({group.stations.length})
+            </h3>
+            <StationTable
+              stations={group.stations}
+              onEdit={openEdit}
+              onDelete={handleDelete}
+              creating={creating}
+              editing={editing}
+              isDeleting={isDeleting}
+            />
+          </div>
+        ))}
       </div>
     </div>
   );
