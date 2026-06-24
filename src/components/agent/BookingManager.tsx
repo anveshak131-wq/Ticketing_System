@@ -60,7 +60,7 @@ export function BookingManager() {
               <div className="p-4 space-y-3">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <span className="font-semibold text-primary">{booking.pnr}</span>
-                  <Badge variant={booking.status === "CONFIRMED" ? "success" : "destructive"}>
+                  <Badge variant={booking.status === "CONFIRMED" ? "success" : "danger"}>
                     {booking.status}
                   </Badge>
                 </div>
@@ -81,7 +81,7 @@ export function BookingManager() {
                   <Button size="sm" variant="outline">
                     Download Ticket
                   </Button>
-                  <Button size="sm" variant="destructive" className="ml-auto">
+                  <Button size="sm" variant="danger" className="ml-auto">
                     <XCircle className="h-4 w-4 mr-2" />
                     Cancel Booking
                   </Button>
