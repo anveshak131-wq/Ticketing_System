@@ -5,13 +5,14 @@ import { Button } from "@/components/ui/Button";
 import { logout } from "@/lib/auth-store";
 import { cn } from "@/lib/utils";
 import { motion } from "framer-motion";
-import { LayoutDashboard, LogOut, Ticket, Train } from "lucide-react";
+import { LayoutDashboard, LogOut, Ticket, Train, BookMarked } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 
 const nav = [
   { href: "/agent/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/agent/book", label: "Book Ticket", icon: Ticket },
+  { href: "/agent/bookings", label: "My Bookings", icon: BookMarked },
 ];
 
 interface AgentShellProps {
