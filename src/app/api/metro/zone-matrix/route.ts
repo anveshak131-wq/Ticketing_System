@@ -1,11 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerData } from "@/lib/server/data";
+import { getZoneMatrix, saveZoneMatrix } from "@/lib/server/data";
 
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
-    const data = await getServerData();
-    const matrix = data.zoneMatrix || [];
-    
+    const matrix = await getZoneMatrix();
     return NextResponse.json(matrix);
   } catch (error) {
     console.error("Error fetching zone matrix:", error);
@@ -16,18 +14,16 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const data = await getServerData();
-    
+    const matrix = await getZoneMatrix();
+
     const newEntry = {
       id: Date.now(),
       ...body,
     };
-    
-    if (!data.zoneMatrix) {
-      data.zoneMatrix = [];
-    }
-    data.zoneMatrix.push(newEntry);
-    
+
+    matrix.push(newEntry);
+    await saveZoneMatrix(matrix);
+
     return NextResponse.json(newEntry, { status: 201 });
   } catch (error) {
     console.error("Error creating zone matrix entry:", error);

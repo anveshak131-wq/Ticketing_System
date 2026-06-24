@@ -1,4 +1,4 @@
-import { SEED_STATIONS, SEED_TRAINS, SEED_USERS } from "@/data/seed-data";
+import { SEED_STATIONS, SEED_TRAINS, SEED_USERS, SEED_METRO_LINES, SEED_LINE_STATIONS } from "@/data/seed-data";
 import { KV_KEYS, kvGet, kvPut } from "@/lib/server/kv";
 import { getStationNetwork, getTrainCategory } from "@/lib/station-utils";
 import type { Reservation, Station, Train, User, SeatInventory, WaitlistEntry, PricingRule, MetroLine, LineStation, FareZone, ZoneMatrix } from "@/types";
@@ -226,8 +226,17 @@ export async function deletePricingRule(ruleId: string): Promise<boolean> {
   return true;
 }
 
+async function ensureMetroSeeded(): Promise<void> {
+  const lines = await kvGet<MetroLine[]>(KV_KEYS.metroLines);
+  if (!lines || lines.length === 0) {
+    await kvPut(KV_KEYS.metroLines, SEED_METRO_LINES);
+    await kvPut(KV_KEYS.lineStations, SEED_LINE_STATIONS);
+  }
+}
+
 // Metro Line Functions
 export async function getMetroLines(): Promise<MetroLine[]> {
+  await ensureMetroSeeded();
   return (await kvGet<MetroLine[]>(KV_KEYS.metroLines)) ?? [];
 }
 
@@ -236,6 +245,7 @@ export async function saveMetroLines(lines: MetroLine[]): Promise<void> {
 }
 
 export async function getLineStations(): Promise<LineStation[]> {
+  await ensureMetroSeeded();
   return (await kvGet<LineStation[]>(KV_KEYS.lineStations)) ?? [];
 }
 

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerData } from "@/lib/server/data";
+import { getLineStations, saveLineStations } from "@/lib/server/data";
 
 export async function PUT(
   request: NextRequest,
@@ -8,19 +8,20 @@ export async function PUT(
   try {
     const { id } = await params;
     const body = await request.json();
-    const data = await getServerData();
-    
-    const stationIndex = data.lineStations?.findIndex((s: any) => s.id === parseInt(id));
-    if (stationIndex === -1 || stationIndex === undefined) {
+    const stations = await getLineStations();
+
+    const stationIndex = stations.findIndex((s) => s.id === parseInt(id));
+    if (stationIndex === -1) {
       return NextResponse.json({ error: "Line station not found" }, { status: 404 });
     }
-    
-    data.lineStations[stationIndex] = {
-      ...data.lineStations[stationIndex],
+
+    stations[stationIndex] = {
+      ...stations[stationIndex],
       ...body,
     };
-    
-    return NextResponse.json(data.lineStations[stationIndex]);
+
+    await saveLineStations(stations);
+    return NextResponse.json(stations[stationIndex]);
   } catch (error) {
     console.error("Error updating line station:", error);
     return NextResponse.json({ error: "Failed to update line station" }, { status: 500 });
@@ -33,15 +34,16 @@ export async function DELETE(
 ) {
   try {
     const { id } = await params;
-    const data = await getServerData();
-    const stationIndex = data.lineStations?.findIndex((s: any) => s.id === parseInt(id));
-    
-    if (stationIndex === -1 || stationIndex === undefined) {
+    const stations = await getLineStations();
+    const stationIndex = stations.findIndex((s) => s.id === parseInt(id));
+
+    if (stationIndex === -1) {
       return NextResponse.json({ error: "Line station not found" }, { status: 404 });
     }
-    
-    data.lineStations.splice(stationIndex, 1);
-    
+
+    stations.splice(stationIndex, 1);
+    await saveLineStations(stations);
+
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error("Error removing station from line:", error);

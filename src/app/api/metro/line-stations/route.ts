@@ -1,18 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerData } from "@/lib/server/data";
+import { getLineStations, saveLineStations } from "@/lib/server/data";
 
 export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;
     const lineId = searchParams.get("lineId");
-    
-    const data = await getServerData();
-    let stations = data.lineStations || [];
-    
+
+    let stations = await getLineStations();
+
     if (lineId) {
-      stations = stations.filter((s: any) => s.lineId === parseInt(lineId));
+      stations = stations.filter((s) => s.lineId === parseInt(lineId));
     }
-    
+
     return NextResponse.json(stations);
   } catch (error) {
     console.error("Error fetching line stations:", error);
@@ -23,18 +22,16 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const data = await getServerData();
-    
+    const stations = await getLineStations();
+
     const newStation = {
       id: Date.now(),
       ...body,
     };
-    
-    if (!data.lineStations) {
-      data.lineStations = [];
-    }
-    data.lineStations.push(newStation);
-    
+
+    stations.push(newStation);
+    await saveLineStations(stations);
+
     return NextResponse.json(newStation, { status: 201 });
   } catch (error) {
     console.error("Error adding station to line:", error);

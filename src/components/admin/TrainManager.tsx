@@ -7,7 +7,7 @@ import { useCatalog } from "@/hooks/use-catalog";
 import { deleteTrain, saveTrain } from "@/lib/catalog-store";
 import { getFareBreakdown } from "@/lib/fare-calculator";
 import { formatCurrency } from "@/lib/utils";
-import { CLASS_LABELS, NETWORK_LABELS, type Train, type TrainCategory, type TrainScheduleStop, type TravelClass } from "@/types";
+import { CLASS_LABELS, NETWORK_LABELS, type Train, type TrainCategory, type TrainScheduleStop, type TravelClass, type StationNetwork } from "@/types";
 import { motion } from "framer-motion";
 import { Pencil, Plus, Search, Trash2 } from "lucide-react";
 import { useState } from "react";
@@ -188,6 +188,16 @@ export function TrainManager() {
       train.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       train.number.toLowerCase().includes(searchQuery.toLowerCase())
   );
+
+  // Group trains by category and line for better organization
+  const groupedTrains = filteredTrains.reduce((acc, train) => {
+    const category = train.category ?? "intercity";
+    if (!acc[category]) {
+      acc[category] = [];
+    }
+    acc[category].push(train);
+    return acc;
+  }, {} as Record<StationNetwork, Train[]>);
 
   const formStations = stations.filter((s) => {
     const network = form.category ?? "intercity";
@@ -508,25 +518,34 @@ export function TrainManager() {
         />
       </div>
 
-      <div className="space-y-3">
-        {filteredTrains.map((train) => (
-          <div key={train.number} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-card p-4">
-            <div>
-              <div className="flex flex-wrap items-center gap-2">
-                <Badge variant="accent">{train.number}</Badge>
-                <span className="font-semibold">{train.name}</span>
-                <Badge>{train.type}</Badge>
-                <Badge variant="default">
-                  {NETWORK_LABELS[train.category ?? "intercity"]}
-                </Badge>
-              </div>
-              <p className="mt-1 text-sm text-muted">
-                {train.source} → {train.destination} · {train.departureTime}–{train.arrivalTime} · {train.schedule.length} stops
-              </p>
-            </div>
-            <div className="flex gap-1">
-              <button type="button" onClick={() => openEdit(train)} className="rounded-lg p-2 text-primary hover:bg-primary/10"><Pencil className="h-4 w-4" /></button>
-              <button type="button" onClick={() => void deleteTrain(train.number)} className="rounded-lg p-2 text-danger hover:bg-danger/10"><Trash2 className="h-4 w-4" /></button>
+      <div className="space-y-6">
+        {Object.entries(groupedTrains).map(([category, categoryTrains]) => (
+          <div key={category}>
+            <h3 className="mb-3 text-sm font-semibold text-muted">
+              {NETWORK_LABELS[category as StationNetwork] || category} ({categoryTrains.length} trains)
+            </h3>
+            <div className="space-y-3">
+              {categoryTrains.map((train) => (
+                <div key={train.number} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-card p-4">
+                  <div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Badge variant="accent">{train.number}</Badge>
+                      <span className="font-semibold">{train.name}</span>
+                      <Badge>{train.type}</Badge>
+                      <Badge variant="default">
+                        {NETWORK_LABELS[train.category ?? "intercity"]}
+                      </Badge>
+                    </div>
+                    <p className="mt-1 text-sm text-muted">
+                      {train.source} → {train.destination} · {train.departureTime}–{train.arrivalTime} · {train.schedule.length} stops
+                    </p>
+                  </div>
+                  <div className="flex gap-1">
+                    <button type="button" onClick={() => openEdit(train)} className="rounded-lg p-2 text-primary hover:bg-primary/10"><Pencil className="h-4 w-4" /></button>
+                    <button type="button" onClick={() => void deleteTrain(train.number)} className="rounded-lg p-2 text-danger hover:bg-danger/10"><Trash2 className="h-4 w-4" /></button>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
         ))}

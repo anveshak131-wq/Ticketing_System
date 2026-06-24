@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerData } from "@/lib/server/data";
+import { getZoneMatrix, saveZoneMatrix } from "@/lib/server/data";
 
 export async function PUT(
   request: NextRequest,
@@ -8,19 +8,20 @@ export async function PUT(
   try {
     const { id } = await params;
     const body = await request.json();
-    const data = await getServerData();
-    
-    const entryIndex = data.zoneMatrix?.findIndex((z: any) => z.id === parseInt(id));
-    if (entryIndex === -1 || entryIndex === undefined) {
+    const matrix = await getZoneMatrix();
+
+    const entryIndex = matrix.findIndex((z) => z.id === parseInt(id));
+    if (entryIndex === -1) {
       return NextResponse.json({ error: "Zone matrix entry not found" }, { status: 404 });
     }
-    
-    data.zoneMatrix[entryIndex] = {
-      ...data.zoneMatrix[entryIndex],
+
+    matrix[entryIndex] = {
+      ...matrix[entryIndex],
       ...body,
     };
-    
-    return NextResponse.json(data.zoneMatrix[entryIndex]);
+
+    await saveZoneMatrix(matrix);
+    return NextResponse.json(matrix[entryIndex]);
   } catch (error) {
     console.error("Error updating zone matrix entry:", error);
     return NextResponse.json({ error: "Failed to update zone matrix entry" }, { status: 500 });
@@ -33,15 +34,16 @@ export async function DELETE(
 ) {
   try {
     const { id } = await params;
-    const data = await getServerData();
-    const entryIndex = data.zoneMatrix?.findIndex((z: any) => z.id === parseInt(id));
-    
-    if (entryIndex === -1 || entryIndex === undefined) {
+    const matrix = await getZoneMatrix();
+    const entryIndex = matrix.findIndex((z) => z.id === parseInt(id));
+
+    if (entryIndex === -1) {
       return NextResponse.json({ error: "Zone matrix entry not found" }, { status: 404 });
     }
-    
-    data.zoneMatrix.splice(entryIndex, 1);
-    
+
+    matrix.splice(entryIndex, 1);
+    await saveZoneMatrix(matrix);
+
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error("Error deleting zone matrix entry:", error);

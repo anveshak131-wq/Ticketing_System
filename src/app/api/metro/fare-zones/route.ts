@@ -1,18 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerData } from "@/lib/server/data";
+import { getFareZones, saveFareZones } from "@/lib/server/data";
 
 export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;
     const network = searchParams.get("network");
-    
-    const data = await getServerData();
-    let zones = data.fareZones || [];
-    
+
+    let zones = await getFareZones();
+
     if (network) {
-      zones = zones.filter((z: any) => z.network === network);
+      zones = zones.filter((z) => z.network === network);
     }
-    
+
     return NextResponse.json(zones);
   } catch (error) {
     console.error("Error fetching fare zones:", error);
@@ -23,20 +22,18 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const data = await getServerData();
-    
+    const zones = await getFareZones();
+
     const newZone = {
       id: Date.now(),
       ...body,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };
-    
-    if (!data.fareZones) {
-      data.fareZones = [];
-    }
-    data.fareZones.push(newZone);
-    
+
+    zones.push(newZone);
+    await saveFareZones(zones);
+
     return NextResponse.json(newZone, { status: 201 });
   } catch (error) {
     console.error("Error creating fare zone:", error);

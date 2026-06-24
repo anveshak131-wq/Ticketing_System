@@ -1,18 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerData } from "@/lib/server/data";
+import { getMetroLines, saveMetroLines } from "@/lib/server/data";
 
 export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;
     const network = searchParams.get("network");
-    
-    const data = await getServerData();
-    let lines = data.metroLines || [];
-    
+
+    let lines = await getMetroLines();
+
     if (network) {
-      lines = lines.filter((line: any) => line.network === network);
+      lines = lines.filter((line) => line.network === network);
     }
-    
+
     return NextResponse.json(lines);
   } catch (error) {
     console.error("Error fetching metro lines:", error);
@@ -23,8 +22,8 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const data = await getServerData();
-    
+    const lines = await getMetroLines();
+
     const newLine = {
       id: Date.now(),
       ...body,
@@ -32,12 +31,10 @@ export async function POST(request: NextRequest) {
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };
-    
-    if (!data.metroLines) {
-      data.metroLines = [];
-    }
-    data.metroLines.push(newLine);
-    
+
+    lines.push(newLine);
+    await saveMetroLines(lines);
+
     return NextResponse.json(newLine, { status: 201 });
   } catch (error) {
     console.error("Error creating metro line:", error);

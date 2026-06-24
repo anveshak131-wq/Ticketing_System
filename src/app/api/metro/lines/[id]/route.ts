@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerData } from "@/lib/server/data";
+import { getMetroLines, saveMetroLines } from "@/lib/server/data";
 
 export async function GET(
   request: NextRequest,
@@ -7,13 +7,13 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
-    const data = await getServerData();
-    const line = data.metroLines?.find((l: any) => l.id === parseInt(id));
-    
+    const lines = await getMetroLines();
+    const line = lines.find((l) => l.id === parseInt(id));
+
     if (!line) {
       return NextResponse.json({ error: "Metro line not found" }, { status: 404 });
     }
-    
+
     return NextResponse.json(line);
   } catch (error) {
     console.error("Error fetching metro line:", error);
@@ -28,20 +28,21 @@ export async function PUT(
   try {
     const { id } = await params;
     const body = await request.json();
-    const data = await getServerData();
-    
-    const lineIndex = data.metroLines?.findIndex((l: any) => l.id === parseInt(id));
-    if (lineIndex === -1 || lineIndex === undefined) {
+    const lines = await getMetroLines();
+
+    const lineIndex = lines.findIndex((l) => l.id === parseInt(id));
+    if (lineIndex === -1) {
       return NextResponse.json({ error: "Metro line not found" }, { status: 404 });
     }
-    
-    data.metroLines[lineIndex] = {
-      ...data.metroLines[lineIndex],
+
+    lines[lineIndex] = {
+      ...lines[lineIndex],
       ...body,
       updatedAt: new Date().toISOString(),
     };
-    
-    return NextResponse.json(data.metroLines[lineIndex]);
+
+    await saveMetroLines(lines);
+    return NextResponse.json(lines[lineIndex]);
   } catch (error) {
     console.error("Error updating metro line:", error);
     return NextResponse.json({ error: "Failed to update metro line" }, { status: 500 });
@@ -54,15 +55,16 @@ export async function DELETE(
 ) {
   try {
     const { id } = await params;
-    const data = await getServerData();
-    const lineIndex = data.metroLines?.findIndex((l: any) => l.id === parseInt(id));
-    
-    if (lineIndex === -1 || lineIndex === undefined) {
+    const lines = await getMetroLines();
+    const lineIndex = lines.findIndex((l) => l.id === parseInt(id));
+
+    if (lineIndex === -1) {
       return NextResponse.json({ error: "Metro line not found" }, { status: 404 });
     }
-    
-    data.metroLines.splice(lineIndex, 1);
-    
+
+    lines.splice(lineIndex, 1);
+    await saveMetroLines(lines);
+
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error("Error deleting metro line:", error);

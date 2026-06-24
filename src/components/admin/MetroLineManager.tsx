@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { MetroLineManager, type MetroLineFormData, type LineStationFormData, type FareZoneFormData, type ZoneMatrixFormData } from "@/lib/metro-line-manager";
-import type { MetroLine, LineStation, FareZone, ZoneMatrix, Station } from "@/types";
+import type { MetroLine, LineStation, FareZone, ZoneMatrix, Station, StationNetwork } from "@/types";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { Input } from "@/components/ui/Input";
@@ -16,7 +16,9 @@ export default function MetroLineManagement() {
   const [fareZones, setFareZones] = useState<FareZone[]>([]);
   const [zoneMatrix, setZoneMatrix] = useState<ZoneMatrix[]>([]);
   const [activeTab, setActiveTab] = useState<"lines" | "stations" | "zones">("lines");
+  const [networkFilter, setNetworkFilter] = useState<"all" | "metro" | "local">("all");
   const [showForm, setShowForm] = useState(false);
+  const [editingLine, setEditingLine] = useState<MetroLine | null>(null);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -57,10 +59,37 @@ export default function MetroLineManagement() {
       await MetroLineManager.createLine(data);
       await loadData();
       setShowForm(false);
+      setEditingLine(null);
     } catch (error) {
       console.error("Error creating line:", error);
       alert("Failed to create metro line");
     }
+  };
+
+  const handleUpdateLine = async (data: MetroLineFormData) => {
+    if (!editingLine) return;
+    try {
+      await MetroLineManager.updateLine(editingLine.id, data);
+      await loadData();
+      setShowForm(false);
+      if (selectedLine?.id === editingLine.id) {
+        setSelectedLine({ ...selectedLine, ...data });
+      }
+      setEditingLine(null);
+    } catch (error) {
+      console.error("Error updating line:", error);
+      alert("Failed to update metro line");
+    }
+  };
+
+  const openCreateForm = () => {
+    setEditingLine(null);
+    setShowForm(true);
+  };
+
+  const openEditForm = (line: MetroLine) => {
+    setEditingLine(line);
+    setShowForm(true);
   };
 
   const handleDeleteLine = async (id: number) => {
@@ -126,11 +155,42 @@ export default function MetroLineManagement() {
     return <div className="p-8">Loading...</div>;
   }
 
+  const filteredLines = networkFilter === "all"
+    ? lines
+    : lines.filter((line) => line.network === networkFilter);
+
+  const groupedLines = filteredLines.reduce((acc, line) => {
+    if (!acc[line.network]) {
+      acc[line.network] = [];
+    }
+    acc[line.network].push(line);
+    return acc;
+  }, {} as Record<StationNetwork, MetroLine[]>);
+
+  const stationName = (code: string) =>
+    stations.find((s) => s.code === code)?.name ?? code;
+
   return (
     <div className="p-8 space-y-6">
       <div className="flex justify-between items-center">
-        <h1 className="text-3xl font-bold">Metro Line Management</h1>
-        <Button onClick={() => setShowForm(true)}>Create New Line</Button>
+        <h1 className="text-3xl font-bold">Metro & Local Line Management</h1>
+        <Button onClick={openCreateForm}>Create New Line</Button>
+      </div>
+
+      <div className="flex flex-wrap gap-2">
+        {(["all", "metro", "local"] as const).map((filter) => (
+          <button
+            key={filter}
+            onClick={() => setNetworkFilter(filter)}
+            className={`rounded-lg px-4 py-2 text-sm font-medium ${
+              networkFilter === filter
+                ? "bg-blue-600 text-white"
+                : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+            }`}
+          >
+            {filter === "all" ? "All Lines" : NETWORK_LABELS[filter]}
+          </button>
+        ))}
       </div>
 
       {/* Tabs */}
@@ -158,53 +218,86 @@ export default function MetroLineManagement() {
 
       {showForm && (
         <LineForm
-          onSubmit={handleCreateLine}
-          onCancel={() => setShowForm(false)}
+          initialLine={editingLine}
+          onSubmit={editingLine ? handleUpdateLine : handleCreateLine}
+          onCancel={() => {
+            setShowForm(false);
+            setEditingLine(null);
+          }}
           stations={stations}
         />
       )}
 
       {activeTab === "lines" && (
-        <div className="grid gap-4">
-          {lines.map((line) => (
-            <Card key={line.id} className="p-4">
-              <div className="flex justify-between items-start">
-                <div>
-                  <h3 className="text-xl font-semibold">{line.name}</h3>
-                  <div className="text-sm text-gray-600 mt-2">
-                    <p>Network: {NETWORK_LABELS[line.network]}</p>
-                    <p>Route: {line.startStation} → {line.endStation}</p>
-                    <p>Distance: {line.totalDistance} km</p>
-                    <p>Stations: {line.totalStations}</p>
-                    <p>Fare Type: {FARE_TYPE_LABELS[line.fareType]}</p>
-                    {line.fareType === "distance" && (
-                      <p>Base Fare: ₹{line.baseFare} + ₹{line.farePerKm}/km</p>
-                    )}
-                    {line.fareType === "flat" && (
-                      <p>Flat Fare: ₹{line.baseFare}</p>
-                    )}
-                  </div>
-                </div>
-                <div className="space-x-2">
-                  <Button
-                    variant="secondary"
-                    onClick={() => {
-                      setSelectedLine(line);
-                      loadLineStations(line.id);
-                      setActiveTab("stations");
-                    }}
-                  >
-                    Manage Stations
-                  </Button>
-                  <Button
-                    variant="danger"
-                    onClick={() => handleDeleteLine(line.id)}
-                  >
-                    Delete
-                  </Button>
-                </div>
-              </div>
+        <div className="space-y-6">
+          {filteredLines.length === 0 && (
+            <Card className="p-6 text-center text-gray-600">
+              No {networkFilter === "all" ? "metro or local" : NETWORK_LABELS[networkFilter].toLowerCase()} lines yet.
+              Create one to get started.
             </Card>
+          )}
+          {Object.entries(groupedLines).map(([network, networkLines]) => (
+            <div key={network}>
+              <h2 className="mb-3 text-lg font-semibold text-gray-700">
+                {NETWORK_LABELS[network as StationNetwork]} ({networkLines.length})
+              </h2>
+              <div className="grid gap-4">
+                {networkLines.map((line) => (
+                  <Card key={line.id} className="p-4">
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <div className="flex items-center gap-2">
+                          {line.color && (
+                            <span
+                              className="inline-block h-4 w-4 rounded-full border"
+                              style={{ backgroundColor: line.color }}
+                            />
+                          )}
+                          <h3 className="text-xl font-semibold">{line.name}</h3>
+                        </div>
+                        <div className="text-sm text-gray-600 mt-2">
+                          <p>Network: {NETWORK_LABELS[line.network]}</p>
+                          <p>Route: {stationName(line.startStation)} → {stationName(line.endStation)}</p>
+                          <p>Distance: {line.totalDistance} km</p>
+                          <p>Stations: {line.totalStations}</p>
+                          <p>Fare Type: {FARE_TYPE_LABELS[line.fareType]}</p>
+                          {line.fareType === "distance" && (
+                            <p>Base Fare: ₹{line.baseFare} + ₹{line.farePerKm}/km</p>
+                          )}
+                          {line.fareType === "flat" && (
+                            <p>Flat Fare: ₹{line.baseFare}</p>
+                          )}
+                        </div>
+                      </div>
+                      <div className="space-x-2">
+                        <Button
+                          variant="secondary"
+                          onClick={() => openEditForm(line)}
+                        >
+                          Edit
+                        </Button>
+                        <Button
+                          variant="secondary"
+                          onClick={() => {
+                            setSelectedLine(line);
+                            loadLineStations(line.id);
+                            setActiveTab("stations");
+                          }}
+                        >
+                          Manage Stations
+                        </Button>
+                        <Button
+                          variant="danger"
+                          onClick={() => handleDeleteLine(line.id)}
+                        >
+                          Delete
+                        </Button>
+                      </div>
+                    </div>
+                  </Card>
+                ))}
+              </div>
+            </div>
           ))}
         </div>
       )}
@@ -217,6 +310,7 @@ export default function MetroLineManagement() {
             </h2>
             <StationForm
               lineId={selectedLine.id}
+              network={selectedLine.network === "local" ? "local" : "metro"}
               stations={stations}
               onSubmit={handleAddStation}
             />
@@ -299,19 +393,33 @@ export default function MetroLineManagement() {
   );
 }
 
-function LineForm({ onSubmit, onCancel, stations }: { onSubmit: (data: MetroLineFormData) => void; onCancel: () => void; stations: Station[] }) {
+function LineForm({
+  initialLine,
+  onSubmit,
+  onCancel,
+  stations,
+}: {
+  initialLine?: MetroLine | null;
+  onSubmit: (data: MetroLineFormData) => void;
+  onCancel: () => void;
+  stations: Station[];
+}) {
   const [formData, setFormData] = useState<MetroLineFormData>({
-    name: "",
-    color: "#3B82F6",
-    network: "metro",
-    startStation: "",
-    endStation: "",
-    totalDistance: 0,
-    totalStations: 0,
-    fareType: "distance",
-    baseFare: 0,
-    farePerKm: 0,
+    name: initialLine?.name ?? "",
+    color: initialLine?.color ?? "#3B82F6",
+    network: initialLine?.network === "local" ? "local" : "metro",
+    startStation: initialLine?.startStation ?? "",
+    endStation: initialLine?.endStation ?? "",
+    totalDistance: initialLine?.totalDistance ?? 0,
+    totalStations: initialLine?.totalStations ?? 0,
+    fareType: initialLine?.fareType ?? "distance",
+    baseFare: initialLine?.baseFare ?? 0,
+    farePerKm: initialLine?.farePerKm ?? 0,
   });
+
+  const networkStations = stations.filter(
+    (s) => (s.network ?? "intercity") === formData.network
+  );
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -320,7 +428,9 @@ function LineForm({ onSubmit, onCancel, stations }: { onSubmit: (data: MetroLine
 
   return (
     <Card className="p-6">
-      <h2 className="text-xl font-semibold mb-4">Create New Metro Line</h2>
+      <h2 className="text-xl font-semibold mb-4">
+        {initialLine ? "Edit Line" : "Create New Line"}
+      </h2>
       <form onSubmit={handleSubmit} className="space-y-4">
         <Input
           label="Line Name"
@@ -336,7 +446,14 @@ function LineForm({ onSubmit, onCancel, stations }: { onSubmit: (data: MetroLine
         />
         <select
           value={formData.network}
-          onChange={(e) => setFormData({ ...formData, network: e.target.value as "metro" | "local" })}
+          onChange={(e) =>
+            setFormData({
+              ...formData,
+              network: e.target.value as "metro" | "local",
+              startStation: "",
+              endStation: "",
+            })
+          }
           className="w-full p-2 border rounded"
         >
           <option value="metro">Metro</option>
@@ -349,7 +466,7 @@ function LineForm({ onSubmit, onCancel, stations }: { onSubmit: (data: MetroLine
           required
         >
           <option value="">Select Start Station</option>
-          {stations.map((s) => (
+          {networkStations.map((s) => (
             <option key={s.code} value={s.code}>{s.name}</option>
           ))}
         </select>
@@ -360,7 +477,7 @@ function LineForm({ onSubmit, onCancel, stations }: { onSubmit: (data: MetroLine
           required
         >
           <option value="">Select End Station</option>
-          {stations.map((s) => (
+          {networkStations.map((s) => (
             <option key={s.code} value={s.code}>{s.name}</option>
           ))}
         </select>
@@ -404,7 +521,7 @@ function LineForm({ onSubmit, onCancel, stations }: { onSubmit: (data: MetroLine
           />
         )}
         <div className="flex space-x-2">
-          <Button type="submit">Create Line</Button>
+          <Button type="submit">{initialLine ? "Save Changes" : "Create Line"}</Button>
           <Button variant="secondary" onClick={onCancel}>Cancel</Button>
         </div>
       </form>
@@ -412,7 +529,17 @@ function LineForm({ onSubmit, onCancel, stations }: { onSubmit: (data: MetroLine
   );
 }
 
-function StationForm({ lineId, stations, onSubmit }: { lineId: number; stations: Station[]; onSubmit: (data: LineStationFormData) => void }) {
+function StationForm({
+  lineId,
+  network,
+  stations,
+  onSubmit,
+}: {
+  lineId: number;
+  network: "metro" | "local";
+  stations: Station[];
+  onSubmit: (data: LineStationFormData) => void;
+}) {
   const [formData, setFormData] = useState<LineStationFormData>({
     lineId,
     stationCode: "",
@@ -420,6 +547,8 @@ function StationForm({ lineId, stations, onSubmit }: { lineId: number; stations:
     distanceFromStart: 0,
     direction: "both",
   });
+
+  const networkStations = stations.filter((s) => (s.network ?? "intercity") === network);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -437,7 +566,7 @@ function StationForm({ lineId, stations, onSubmit }: { lineId: number; stations:
           required
         >
           <option value="">Select Station</option>
-          {stations.map((s) => (
+          {networkStations.map((s) => (
             <option key={s.code} value={s.code}>{s.name}</option>
           ))}
         </select>
