@@ -12,6 +12,10 @@ export const KV_KEYS = {
   seatInventory: "seat_inventory",
   waitlist: "waitlist",
   pricingRules: "pricing_rules",
+  metroLines: "metro_lines",
+  lineStations: "line_stations",
+  fareZones: "fare_zones",
+  zoneMatrix: "zone_matrix",
 } as const;
 
 export const SESSION_PREFIX = "session:";

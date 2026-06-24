@@ -21,8 +21,11 @@ import { formatCurrency, formatDate } from "@/lib/utils";
 import { calculateTotalFare } from "@/lib/pricing-engine";
 import { buildBerthPreferenceCounts, buildSeatInventory } from "@/lib/seat-availability";
 import { bookSeats } from "@/lib/seat-management";
-import type { BookingType, Passenger, Reservation, StationNetwork, TrainSearchResult } from "@/types";
-import { BOOKING_TYPE_LABELS } from "@/types";
+import { MetroLineManager } from "@/lib/metro-line-manager";
+import { MetroFareCalculator } from "@/lib/metro-fare-calculator";
+import { MetroScheduler } from "@/lib/metro-scheduler";
+import type { BookingType, Passenger, Reservation, StationNetwork, TrainSearchResult, MetroLine, LineStation } from "@/types";
+import { BOOKING_TYPE_LABELS, FARE_TYPE_LABELS } from "@/types";
 import { getUrbanServiceSummary } from "@/lib/urban-service-schedule";
 import { AnimatePresence, motion } from "framer-motion";
 import { CheckCircle2, Copy, Download, Ticket, Train } from "lucide-react";
@@ -59,6 +62,11 @@ export function MetroBookingWizard() {
   const [confirmedSeats, setConfirmedSeats] = useState<string[]>([]);
   const [bookingError, setBookingError] = useState("");
   const [copied, setCopied] = useState(false);
+  
+  // Metro-specific state
+  const [metroLines, setMetroLines] = useState<MetroLine[]>([]);
+  const [selectedLine, setSelectedLine] = useState<MetroLine | null>(null);
+  const [lineStations, setLineStations] = useState<LineStation[]>([]);
 
   const availableCities = useMemo(
     () => getNetworkCities(stations, network),
@@ -100,6 +108,19 @@ export function MetroBookingWizard() {
     setTicketCount(1);
   }, [network, city, cityStations]);
 
+  // Load metro lines
+  useEffect(() => {
+    const loadMetroLines = async () => {
+      try {
+        const lines = await MetroLineManager.getLines(network);
+        setMetroLines(lines);
+      } catch (error) {
+        console.error("Error loading metro lines:", error);
+      }
+    };
+    loadMetroLines();
+  }, [network]);
+
   const bookingType: BookingType = network === "local" ? "local" : "metro";
   const passengers = useMemo(
     () => createUrbanPassengers(ticketCount),
@@ -116,6 +137,30 @@ export function MetroBookingWizard() {
       };
     }
 
+    // Use metro fare calculation if line is selected
+    if (selectedLine && network !== "intercity") {
+      try {
+        const fareResult = MetroFareCalculator.calculateFare({
+          fromStation: from,
+          toStation: to,
+          lineId: selectedLine.id,
+          lineStations,
+          metroLine: selectedLine,
+        });
+        
+        return {
+          unitPrice: fareResult.fare,
+          totalFare: fareResult.fare * ticketCount,
+          pricingMultiplier: 1,
+          isGroupBooking: false,
+          fareBreakdown: fareResult,
+        };
+      } catch (error) {
+        console.error("Error calculating metro fare:", error);
+      }
+    }
+
+    // Fallback to original fare calculation
     const baseFare = selectedTrain.fare[travelClass] ?? 0;
     const dynamicFare =
       selectedTrain.dynamicPrice[travelClass] ?? baseFare;
@@ -127,7 +172,7 @@ export function MetroBookingWizard() {
       undefined,
       undefined
     );
-  }, [selectedTrain, ticketCount]);
+  }, [selectedTrain, ticketCount, selectedLine, from, to, lineStations, network]);
 
   const totalFare = fareQuote.totalFare;
   const selectedAvailableSeats = selectedTrain?.availableSeats[travelClass] ?? 0;
@@ -153,7 +198,33 @@ export function MetroBookingWizard() {
   const handleSelectTrain = (train: TrainSearchResult) => {
     setBookingError("");
     setSelectedTrain(train);
+    
+    // Auto-select metro line if available
+    if (metroLines.length > 0 && network !== "intercity") {
+      const availableLine = MetroFareCalculator.getAvailableLines(
+        from,
+        to,
+        lineStations,
+        metroLines
+      )[0];
+      if (availableLine) {
+        setSelectedLine(availableLine);
+        // Load line stations
+        MetroLineManager.getLineStations(availableLine.id).then(setLineStations);
+      }
+    }
+    
     setStep(2);
+  };
+
+  const handleSelectLine = async (line: MetroLine) => {
+    setSelectedLine(line);
+    try {
+      const stations = await MetroLineManager.getLineStations(line.id);
+      setLineStations(stations);
+    } catch (error) {
+      console.error("Error loading line stations:", error);
+    }
   };
 
   const handleConfirm = async () => {
@@ -202,6 +273,12 @@ export function MetroBookingWizard() {
       bookedAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
       seats: allocation.bookedSeats,
+      // Metro-specific fields
+      lineId: selectedLine?.id,
+      distanceKm: (fareQuote as any).fareBreakdown?.distanceKm,
+      fareType: selectedLine?.fareType,
+      fromZone: (fareQuote as any).fareBreakdown?.fromZone,
+      toZone: (fareQuote as any).fareBreakdown?.toZone,
     };
 
     await saveReservation(reservation);
@@ -244,6 +321,52 @@ export function MetroBookingWizard() {
             </button>
           ))}
         </div>
+
+        {/* Metro Line Selection */}
+        {metroLines.length > 0 && network !== "intercity" && (
+          <div className="mb-6">
+            <label className="mb-2 block text-sm font-medium">Select Metro Line</label>
+            <div className="flex flex-wrap gap-2">
+              <button
+                onClick={() => setSelectedLine(null)}
+                className={cn(
+                  "rounded-xl px-4 py-2 text-sm font-medium transition-colors",
+                  !selectedLine
+                    ? "bg-primary text-primary-foreground shadow-md shadow-primary/20"
+                    : "border border-border bg-card text-muted hover:text-foreground"
+                )}
+              >
+                Any Line
+              </button>
+              {metroLines.map((line) => (
+                <button
+                  key={line.id}
+                  onClick={() => handleSelectLine(line)}
+                  className={cn(
+                    "rounded-xl px-4 py-2 text-sm font-medium transition-colors",
+                    selectedLine?.id === line.id
+                      ? "bg-primary text-primary-foreground shadow-md shadow-primary/20"
+                      : "border border-border bg-card text-muted hover:text-foreground"
+                  )}
+                  style={selectedLine?.id === line.id ? { backgroundColor: line.color } : undefined}
+                >
+                  {line.name}
+                </button>
+              ))}
+            </div>
+            {selectedLine && (
+              <div className="mt-2 text-sm text-muted">
+                <span className="font-medium">Fare Type:</span> {FARE_TYPE_LABELS[selectedLine.fareType]}
+                {selectedLine.fareType === "distance" && (
+                  <span className="ml-2">Base: ₹{selectedLine.baseFare} + ₹{selectedLine.farePerKm}/km</span>
+                )}
+                {selectedLine.fareType === "flat" && (
+                  <span className="ml-2">Flat Rate: ₹{selectedLine.baseFare}</span>
+                )}
+              </div>
+            )}
+          </div>
+        )}
 
         <StepIndicator currentStep={step} />
 

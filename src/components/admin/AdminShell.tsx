@@ -15,6 +15,7 @@ import {
   Train,
   Zap,
   DollarSign,
+  TramFront,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -26,6 +27,7 @@ const nav = [
   { href: "/admin/stations", label: "Stations", icon: MapPin },
   { href: "/admin/trains", label: "Trains", icon: Train },
   { href: "/admin/stops", label: "Stops", icon: Zap },
+  { href: "/admin/metro-lines", label: "Metro Lines", icon: TramFront },
   { href: "/admin/reservations", label: "Reservations", icon: Ticket },
 ];
 

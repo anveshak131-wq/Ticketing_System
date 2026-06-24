@@ -14,12 +14,59 @@ export type BerthType = "UB" | "MB" | "LB" | "SU" | "SL" | "SEAT";
 
 export type PricingRuleType = "demand" | "occupancy" | "date_range" | "promotional";
 
+export type FareType = "distance" | "zone" | "flat";
+
+export type TrainDirection = "up" | "down" | "both";
+
 export interface Station {
   code: string;
   name: string;
   city: string;
   state: string;
   network?: StationNetwork;
+  // Metro/Local specific fields
+  zoneId?: number;
+  latitude?: number;
+  longitude?: number;
+  isTerminus?: boolean;
+}
+
+export interface MetroLine {
+  id: number;
+  name: string;
+  color?: string;
+  network: StationNetwork;
+  startStation: string;
+  endStation: string;
+  totalDistance: number;
+  totalStations: number;
+  fareType: FareType;
+  baseFare: number;
+  farePerKm: number;
+  isActive: boolean;
+}
+
+export interface LineStation {
+  id: number;
+  lineId: number;
+  stationCode: string;
+  stopOrder: number;
+  distanceFromStart: number;
+  direction: TrainDirection;
+}
+
+export interface FareZone {
+  id: number;
+  name: string;
+  network: StationNetwork;
+  baseFare: number;
+}
+
+export interface ZoneMatrix {
+  id: number;
+  fromZone: number;
+  toZone: number;
+  fare: number;
 }
 
 export interface TrainScheduleStop {
@@ -84,6 +131,14 @@ export interface Train {
   peakFrequencyMinutes?: number;
   /** Minutes between trains during off-peak hours */
   offPeakFrequencyMinutes?: number;
+  // Metro/Local specific fields
+  lineId?: number;
+  direction?: TrainDirection;
+  headwayMinutes?: number;
+  peakHoursStart?: string;
+  peakHoursEnd?: string;
+  peakHeadwayMinutes?: number;
+  offPeakHeadwayMinutes?: number;
 }
 
 export interface Passenger {
@@ -144,6 +199,12 @@ export interface Reservation {
   bookedAt: string;
   updatedAt: string;
   seats?: string[]; // Seat numbers
+  // Metro/Local specific fields
+  lineId?: number;
+  distanceKm?: number;
+  fareType?: FareType;
+  fromZone?: number;
+  toZone?: number;
 }
 
 export interface WaitlistEntry {
@@ -234,4 +295,16 @@ export const BERTH_PREFERENCE_LABELS: Record<BerthPreference, string> = {
   SL: "Side Lower",
   SU: "Side Upper",
   none: "No Preference",
+};
+
+export const FARE_TYPE_LABELS: Record<FareType, string> = {
+  distance: "Distance-Based",
+  zone: "Zone-Based",
+  flat: "Flat Rate",
+};
+
+export const DIRECTION_LABELS: Record<TrainDirection, string> = {
+  up: "Up Line",
+  down: "Down Line",
+  both: "Both Directions",
 };

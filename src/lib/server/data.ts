@@ -1,7 +1,7 @@
 import { SEED_STATIONS, SEED_TRAINS, SEED_USERS } from "@/data/seed-data";
 import { KV_KEYS, kvGet, kvPut } from "@/lib/server/kv";
 import { getStationNetwork, getTrainCategory } from "@/lib/station-utils";
-import type { Reservation, Station, Train, User, SeatInventory, WaitlistEntry, PricingRule } from "@/types";
+import type { Reservation, Station, Train, User, SeatInventory, WaitlistEntry, PricingRule, MetroLine, LineStation, FareZone, ZoneMatrix } from "@/types";
 
 export interface Catalog {
   stations: Station[];
@@ -224,4 +224,46 @@ export async function deletePricingRule(ruleId: string): Promise<boolean> {
   if (filtered.length === rules.length) return false;
   await savePricingRules(filtered);
   return true;
+}
+
+// Metro Line Functions
+export async function getMetroLines(): Promise<MetroLine[]> {
+  return (await kvGet<MetroLine[]>(KV_KEYS.metroLines)) ?? [];
+}
+
+export async function saveMetroLines(lines: MetroLine[]): Promise<void> {
+  await kvPut(KV_KEYS.metroLines, lines);
+}
+
+export async function getLineStations(): Promise<LineStation[]> {
+  return (await kvGet<LineStation[]>(KV_KEYS.lineStations)) ?? [];
+}
+
+export async function saveLineStations(stations: LineStation[]): Promise<void> {
+  await kvPut(KV_KEYS.lineStations, stations);
+}
+
+export async function getFareZones(): Promise<FareZone[]> {
+  return (await kvGet<FareZone[]>(KV_KEYS.fareZones)) ?? [];
+}
+
+export async function saveFareZones(zones: FareZone[]): Promise<void> {
+  await kvPut(KV_KEYS.fareZones, zones);
+}
+
+export async function getZoneMatrix(): Promise<ZoneMatrix[]> {
+  return (await kvGet<ZoneMatrix[]>(KV_KEYS.zoneMatrix)) ?? [];
+}
+
+export async function saveZoneMatrix(matrix: ZoneMatrix[]): Promise<void> {
+  await kvPut(KV_KEYS.zoneMatrix, matrix);
+}
+
+export async function getServerData() {
+  return {
+    metroLines: await getMetroLines(),
+    lineStations: await getLineStations(),
+    fareZones: await getFareZones(),
+    zoneMatrix: await getZoneMatrix(),
+  };
 }
