@@ -515,7 +515,11 @@ function createContentStream(reservation: Reservation): string {
   const ops: string[] = [];
   const status = STATUS_STYLES[reservation.status];
   const passengerCount = reservation.passengers.length;
-  const primaryPassenger = reservation.passengers[0]?.name ?? "Passenger";
+  const isUrbanTicket =
+    reservation.bookingType === "metro" || reservation.bookingType === "local";
+  const primaryPassenger = isUrbanTicket
+    ? `${passengerCount} ticket${passengerCount !== 1 ? "s" : ""}`
+    : reservation.passengers[0]?.name ?? "Passenger";
   const channel = reservation.bookingChannel === "agent" ? "Counter booking" : "Online booking";
   // Format: key-value pairs separated by | for better scanning
   const qrPayload = `PNR=${reservation.pnr}|TRAIN=${reservation.trainNumber}|STATUS=${status.label}`;
@@ -607,14 +611,53 @@ function createContentStream(reservation: Reservation): string {
   });
 
   drawRect(ops, 32, 398, 531, 230, { fill: COLORS.panel, stroke: COLORS.border });
-  drawText(ops, `Passengers (${passengerCount})`, 56, 428, {
-    color: COLORS.blue,
-    font: "bold",
-    size: 13,
-  });
+  drawText(
+    ops,
+    isUrbanTicket ? `Tickets (${passengerCount})` : `Passengers (${passengerCount})`,
+    56,
+    428,
+    {
+      color: COLORS.blue,
+      font: "bold",
+      size: 13,
+    }
+  );
 
   const tableLeft = 56;
   const tableTop = 446;
+
+  if (isUrbanTicket) {
+    const col = {
+      number: tableLeft,
+      seat: tableLeft + 38,
+    };
+
+    drawRect(ops, tableLeft, tableTop, 482, 28, { fill: COLORS.softSlate, stroke: COLORS.border });
+    drawText(ops, "NO", col.number + 8, tableTop + 18, {
+      color: COLORS.muted,
+      font: "bold",
+      size: 8,
+    });
+    drawText(ops, "SEAT", col.seat, tableTop + 18, {
+      color: COLORS.muted,
+      font: "bold",
+      size: 8,
+    });
+
+    reservation.passengers.slice(0, 6).forEach((_, index) => {
+      const rowTop = tableTop + 28 + index * 30;
+      drawRect(ops, tableLeft, rowTop, 482, 30, {
+        fill: index % 2 === 0 ? COLORS.white : COLORS.page,
+        stroke: COLORS.border,
+        strokeWidth: 0.5,
+      });
+      drawText(ops, String(index + 1), col.number + 10, rowTop + 20, { font: "bold", size: 9 });
+      drawText(ops, reservation.seats?.[index] ?? "Auto-assigned", col.seat, rowTop + 20, {
+        font: "bold",
+        size: 9,
+      });
+    });
+  } else {
   const col = {
     number: tableLeft,
     name: tableLeft + 38,
@@ -651,6 +694,7 @@ function createContentStream(reservation: Reservation): string {
       : BERTH_LABELS[passenger.berthPreference];
     drawText(ops, truncate(berthText, 18), col.berth, rowTop + 20, { size: 9 });
   });
+  }
 
   drawRect(ops, 32, 654, 251, 98, { fill: COLORS.panel, stroke: COLORS.border });
   drawText(ops, "Booking Details", 56, 684, { color: COLORS.blue, font: "bold", size: 12 });

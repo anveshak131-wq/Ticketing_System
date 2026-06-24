@@ -241,20 +241,34 @@ function ReservationsContent() {
 
                 {!editing ? (
                   <div className="mt-6">
-                    <p className="mb-2 text-sm font-medium">Passengers</p>
-                    <ul className="space-y-2">
-                      {reservation.passengers.map((p, i) => (
-                        <li
-                          key={p.id}
-                          className="rounded-lg bg-foreground/5 px-3 py-2 text-sm"
-                        >
-                          {i + 1}. {p.name} · {p.age} yrs · {p.gender}
-                          {reservation.seats?.[i] && ` · Seat ${reservation.seats[i]}`}
-                          {" · "}
-                          {BERTH_PREFERENCE_LABELS[p.berthPreference]}
-                        </li>
-                      ))}
-                    </ul>
+                    <p className="mb-2 text-sm font-medium">
+                      {reservation.bookingType === "metro" || reservation.bookingType === "local"
+                        ? "Tickets"
+                        : "Passengers"}
+                    </p>
+                    {reservation.bookingType === "metro" || reservation.bookingType === "local" ? (
+                      <p className="rounded-lg bg-foreground/5 px-3 py-2 text-sm">
+                        {reservation.passengers.length} ticket
+                        {reservation.passengers.length !== 1 ? "s" : ""}
+                        {reservation.seats?.length
+                          ? ` · Seats ${reservation.seats.join(", ")}`
+                          : ""}
+                      </p>
+                    ) : (
+                      <ul className="space-y-2">
+                        {reservation.passengers.map((p, i) => (
+                          <li
+                            key={p.id}
+                            className="rounded-lg bg-foreground/5 px-3 py-2 text-sm"
+                          >
+                            {i + 1}. {p.name} · {p.age} yrs · {p.gender}
+                            {reservation.seats?.[i] && ` · Seat ${reservation.seats[i]}`}
+                            {" · "}
+                            {BERTH_PREFERENCE_LABELS[p.berthPreference]}
+                          </li>
+                        ))}
+                      </ul>
+                    )}
                   </div>
                 ) : (
                   <div className="mt-6">
@@ -294,13 +308,16 @@ function ReservationsContent() {
 
                     {reservation.status !== "cancelled" && (
                       <>
-                        <Button
-                          variant="outline"
-                          disabled={!modifiable}
-                          onClick={() => setEditing(true)}
-                        >
-                          Edit Passengers
-                        </Button>
+                        {reservation.bookingType !== "metro" &&
+                          reservation.bookingType !== "local" && (
+                          <Button
+                            variant="outline"
+                            disabled={!modifiable}
+                            onClick={() => setEditing(true)}
+                          >
+                            Edit Passengers
+                          </Button>
+                        )}
                         <Button
                           variant="danger"
                           disabled={!modifiable}

@@ -22,6 +22,9 @@ interface SearchFormProps {
   loading?: boolean;
   stationNetwork?: StationNetwork;
   searchLabel?: string;
+  city?: string;
+  cities?: string[];
+  onCityChange?: (city: string) => void;
 }
 
 export function SearchForm({
@@ -37,14 +40,23 @@ export function SearchForm({
   loading,
   stationNetwork,
   searchLabel = "Search Trains",
+  city,
+  cities,
+  onCityChange,
 }: SearchFormProps) {
   const { stations } = useCatalog();
   const minDate = useMemo(() => new Date().toISOString().split("T")[0], []);
 
   const filteredStations = useMemo(() => {
-    if (!stationNetwork) return stations;
-    return stations.filter((s) => (s.network ?? "intercity") === stationNetwork);
-  }, [stations, stationNetwork]);
+    let list = stations;
+    if (stationNetwork) {
+      list = list.filter((s) => (s.network ?? "intercity") === stationNetwork);
+    }
+    if (city) {
+      list = list.filter((s) => s.city === city);
+    }
+    return list;
+  }, [stations, stationNetwork, city]);
 
   const swapStations = () => {
     onFromChange(to);
@@ -57,11 +69,29 @@ export function SearchForm({
       animate={{ opacity: 1, y: 0 }}
       className="rounded-2xl border border-border bg-card p-6 shadow-sm"
     >
-      {stationNetwork && (
+      {stationNetwork && stationNetwork !== "intercity" && cities && cities.length > 0 && onCityChange ? (
+        <div className="mb-4">
+          <label className="mb-1.5 block text-sm font-medium">City</label>
+          <select
+            value={city ?? ""}
+            onChange={(e) => onCityChange(e.target.value)}
+            className="w-full rounded-xl border border-border bg-card px-4 py-2.5 outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 sm:max-w-xs"
+          >
+            {cities.map((c) => (
+              <option key={c} value={c}>
+                {c}
+              </option>
+            ))}
+          </select>
+          <p className="mt-2 text-sm text-muted">
+            {NETWORK_LABELS[stationNetwork]} stations in {city || "selected city"}
+          </p>
+        </div>
+      ) : stationNetwork ? (
         <p className="mb-4 text-sm text-muted">
           {NETWORK_LABELS[stationNetwork]} stations configured by admin
         </p>
-      )}
+      ) : null}
       <div className="grid gap-4 sm:grid-cols-2">
         <div>
           <label className="mb-1.5 block text-sm font-medium">From Station</label>

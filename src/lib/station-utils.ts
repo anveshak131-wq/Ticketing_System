@@ -18,3 +18,21 @@ export function filterStationsByNetwork(
 ): Station[] {
   return stations.filter((s) => getStationNetwork(s) === network);
 }
+
+export function getNetworkCities(
+  stations: Station[],
+  network: StationNetwork
+): string[] {
+  const cities = new Set(
+    filterStationsByNetwork(stations, network).map((s) => s.city)
+  );
+  return [...cities].sort((a, b) => a.localeCompare(b));
+}
+
+export function filterStationsByNetworkAndCity(
+  stations: Station[],
+  network: StationNetwork,
+  city: string
+): Station[] {
+  return filterStationsByNetwork(stations, network).filter((s) => s.city === city);
+}

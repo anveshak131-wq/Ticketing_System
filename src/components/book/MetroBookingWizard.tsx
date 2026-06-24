@@ -1,9 +1,9 @@
 "use client";
 
-import { PassengerForm } from "@/components/book/PassengerForm";
 import { SearchForm } from "@/components/book/SearchForm";
 import { StepIndicator } from "@/components/book/StepIndicator";
 import { TrainList } from "@/components/book/TrainList";
+import { UrbanTicketForm } from "@/components/book/UrbanTicketForm";
 import { PageTransition } from "@/components/motion/PageTransition";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
@@ -11,7 +11,10 @@ import { buttonStyles } from "@/components/ui/button-styles";
 import { useCatalog } from "@/hooks/use-catalog";
 import { useReservations } from "@/hooks/use-reservations";
 import { saveReservation } from "@/lib/booking-store";
-import { filterStationsByNetwork } from "@/lib/station-utils";
+import {
+  filterStationsByNetworkAndCity,
+  getNetworkCities,
+} from "@/lib/station-utils";
 import { getStationLabel, searchTrains } from "@/lib/train-search";
 import { generatePNR, formatPNR } from "@/lib/pnr";
 import { formatCurrency, formatDate } from "@/lib/utils";
@@ -26,54 +29,64 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { cn } from "@/lib/utils";
 
-const NETWORK_DEFAULTS: Record<StationNetwork, { from: string; to: string }> = {
-  intercity: { from: "NDLS", to: "BCT" },
-  metro: { from: "DMK1", to: "DMK3" },
-  local: { from: "MLK1", to: "MLK5" },
-};
-
-function createDefaultPassenger(): Passenger {
-  return {
+function createUrbanPassengers(count: number): Passenger[] {
+  return Array.from({ length: count }, () => ({
     id: crypto.randomUUID(),
     name: "",
-    age: 25,
-    gender: "male",
-    berthPreference: "none",
-  };
+    age: 0,
+    gender: "other" as const,
+    berthPreference: "none" as const,
+  }));
 }
 
 export function MetroBookingWizard() {
   const { stations } = useCatalog();
   const reservations = useReservations();
   const [network, setNetwork] = useState<StationNetwork>("metro");
+  const [city, setCity] = useState("");
   const [step, setStep] = useState(0);
   const [loading, setLoading] = useState(false);
-  const [from, setFrom] = useState("DMK1");
-  const [to, setTo] = useState("DMK3");
+  const [from, setFrom] = useState("");
+  const [to, setTo] = useState("");
   const [date, setDate] = useState("");
   const travelClass = "2S" as const;
   const [results, setResults] = useState<TrainSearchResult[]>([]);
   const [selectedTrain, setSelectedTrain] = useState<TrainSearchResult | null>(null);
-  const [passengers, setPassengers] = useState<Passenger[]>([createDefaultPassenger()]);
+  const [ticketCount, setTicketCount] = useState(1);
   const [confirmedPNR, setConfirmedPNR] = useState<string | null>(null);
   const [confirmedSeats, setConfirmedSeats] = useState<string[]>([]);
   const [bookingError, setBookingError] = useState("");
   const [copied, setCopied] = useState(false);
 
-  const networkStations = useMemo(
-    () => filterStationsByNetwork(stations, network),
+  const availableCities = useMemo(
+    () => getNetworkCities(stations, network),
     [stations, network]
   );
 
+  const cityStations = useMemo(
+    () => (city ? filterStationsByNetworkAndCity(stations, network, city) : []),
+    [stations, network, city]
+  );
+
   useEffect(() => {
-    const defaults = NETWORK_DEFAULTS[network];
-    const availableCodes = networkStations.map((s) => s.code);
-    const fromCode = availableCodes.includes(defaults.from)
-      ? defaults.from
-      : networkStations[0]?.code ?? "";
-    const toCode = availableCodes.includes(defaults.to)
-      ? defaults.to
-      : networkStations[networkStations.length - 1]?.code ?? "";
+    if (availableCities.length === 0) {
+      setCity("");
+      return;
+    }
+    if (!city || !availableCities.includes(city)) {
+      setCity(availableCities[0]);
+    }
+  }, [availableCities, city]);
+
+  useEffect(() => {
+    if (cityStations.length === 0) {
+      setFrom("");
+      setTo("");
+      return;
+    }
+
+    const fromCode = cityStations[0].code;
+    const toCode = cityStations[cityStations.length - 1].code;
     setFrom(fromCode);
     setTo(toCode);
     setStep(0);
@@ -82,10 +95,14 @@ export function MetroBookingWizard() {
     setConfirmedPNR(null);
     setConfirmedSeats([]);
     setBookingError("");
-    setPassengers([createDefaultPassenger()]);
-  }, [network, networkStations]);
+    setTicketCount(1);
+  }, [network, city, cityStations]);
 
   const bookingType: BookingType = network === "local" ? "local" : "metro";
+  const passengers = useMemo(
+    () => createUrbanPassengers(ticketCount),
+    [ticketCount]
+  );
 
   const fareQuote = useMemo(() => {
     if (!selectedTrain) {
@@ -103,12 +120,12 @@ export function MetroBookingWizard() {
 
     return calculateTotalFare(
       dynamicFare,
-      passengers.length,
+      ticketCount,
       selectedTrain.occupancyRateByClass[travelClass] ?? 0,
       undefined,
       undefined
     );
-  }, [selectedTrain, passengers.length]);
+  }, [selectedTrain, ticketCount]);
 
   const totalFare = fareQuote.totalFare;
   const selectedAvailableSeats = selectedTrain?.availableSeats[travelClass] ?? 0;
@@ -144,7 +161,7 @@ export function MetroBookingWizard() {
     );
     const allocation = bookSeats(
       inventory,
-      passengers.length,
+      ticketCount,
       buildBerthPreferenceCounts(passengers)
     );
 
@@ -171,7 +188,7 @@ export function MetroBookingWizard() {
       baseFare: selectedTrain.fare[travelClass] ?? 0,
       pricingMultiplier: fareQuote.pricingMultiplier,
       isGroupBooking: false,
-      groupSize: passengers.length,
+      groupSize: ticketCount,
       status: allocation.isWaitlist ? "waitlisted" : "confirmed",
       bookingChannel: "public",
       bookedAt: new Date().toISOString(),
@@ -198,7 +215,7 @@ export function MetroBookingWizard() {
         <div className="mb-8">
           <h1 className="text-3xl font-bold">Metro & Local Tickets</h1>
           <p className="mt-2 text-muted">
-            Book urban metro and suburban local train tickets on admin-configured routes
+            Choose your city first, then book metro or local train tickets on admin-configured routes
           </p>
         </div>
 
@@ -225,27 +242,40 @@ export function MetroBookingWizard() {
         <AnimatePresence mode="wait">
           {step === 0 && (
             <motion.div key="search" exit={{ opacity: 0, x: -20 }}>
-              <SearchForm
-                from={from}
-                to={to}
-                date={date}
-                travelClass={travelClass}
-                onFromChange={setFrom}
-                onToChange={setTo}
-                onDateChange={setDate}
-                onClassChange={() => {}}
-                onSearch={handleSearch}
-                loading={loading}
-                stationNetwork={network}
-                searchLabel={
-                  network === "metro" ? "Search Metro Services" : "Search Local Trains"
-                }
-              />
+              {availableCities.length === 0 ? (
+                <div className="rounded-2xl border border-border bg-card p-6 text-sm text-muted">
+                  No {BOOKING_TYPE_LABELS[bookingType].toLowerCase()} stations are configured yet.
+                  Ask an admin to add stations for this network.
+                </div>
+              ) : (
+                <SearchForm
+                  from={from}
+                  to={to}
+                  date={date}
+                  travelClass={travelClass}
+                  onFromChange={setFrom}
+                  onToChange={setTo}
+                  onDateChange={setDate}
+                  onClassChange={() => {}}
+                  onSearch={handleSearch}
+                  loading={loading}
+                  stationNetwork={network}
+                  city={city}
+                  cities={availableCities}
+                  onCityChange={setCity}
+                  searchLabel={
+                    network === "metro" ? "Search Metro Services" : "Search Local Trains"
+                  }
+                />
+              )}
             </motion.div>
           )}
 
           {step === 1 && (
             <motion.div key="trains" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }}>
+              <div className="mb-4">
+                <Badge variant="accent">{city}</Badge>
+              </div>
               <TrainList
                 trains={results}
                 selectedClass={travelClass}
@@ -260,16 +290,17 @@ export function MetroBookingWizard() {
           )}
 
           {step === 2 && selectedTrain && (
-            <motion.div key="passengers" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, y: 0 }}>
+            <motion.div key="tickets" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, y: 0 }}>
               <div className="mb-6 rounded-2xl border border-border bg-primary/5 p-4">
                 <div className="flex flex-wrap items-center gap-2">
                   <Badge variant="accent">{selectedTrain.number}</Badge>
                   <span className="font-semibold">{selectedTrain.name}</span>
                   <Badge variant="default">{BOOKING_TYPE_LABELS[bookingType]}</Badge>
+                  <Badge variant="default">{city}</Badge>
                 </div>
                 <p className="mt-2 text-sm text-muted">
                   {formatDate(date)} · {getStationLabel(from)} → {getStationLabel(to)} ·{" "}
-                  {formatCurrency(fareQuote.unitPrice)} per passenger
+                  {formatCurrency(fareQuote.unitPrice)} per ticket
                 </p>
                 <div className="mt-3">
                   <Badge variant={selectedAvailableSeats > 10 ? "success" : "warning"}>
@@ -277,16 +308,15 @@ export function MetroBookingWizard() {
                   </Badge>
                 </div>
               </div>
-              <PassengerForm
-                passengers={passengers}
-                onChange={setPassengers}
+              <UrbanTicketForm
+                ticketCount={ticketCount}
+                onCountChange={setTicketCount}
                 onNext={() => {
                   setBookingError("");
                   setStep(3);
                 }}
                 onBack={() => setStep(1)}
-                travelClass={travelClass}
-                farePerPassenger={fareQuote.unitPrice}
+                farePerTicket={fareQuote.unitPrice}
               />
             </motion.div>
           )}
@@ -305,6 +335,10 @@ export function MetroBookingWizard() {
                   <span className="font-medium">{BOOKING_TYPE_LABELS[bookingType]}</span>
                 </div>
                 <div className="flex justify-between border-b border-border pb-2">
+                  <span className="text-muted">City</span>
+                  <span className="font-medium">{city}</span>
+                </div>
+                <div className="flex justify-between border-b border-border pb-2">
                   <span className="text-muted">Service</span>
                   <span className="font-medium">
                     {selectedTrain.name} ({selectedTrain.number})
@@ -321,22 +355,14 @@ export function MetroBookingWizard() {
                   <span className="font-medium">{formatDate(date)}</span>
                 </div>
                 <div className="flex justify-between border-b border-border pb-2">
-                  <span className="text-muted">Passengers</span>
-                  <span className="font-medium">{passengers.length}</span>
+                  <span className="text-muted">Tickets</span>
+                  <span className="font-medium">{ticketCount}</span>
                 </div>
                 <div className="flex justify-between pt-2 text-lg font-bold">
                   <span>Total Fare</span>
                   <span className="text-primary">{formatCurrency(totalFare)}</span>
                 </div>
               </div>
-
-              <ul className="mt-6 space-y-2">
-                {passengers.map((p, i) => (
-                  <li key={p.id} className="rounded-lg bg-foreground/5 px-3 py-2 text-sm">
-                    {i + 1}. {p.name} · {p.age} yrs · {p.gender}
-                  </li>
-                ))}
-              </ul>
 
               {bookingError && (
                 <p className="mt-4 rounded-xl border border-danger/30 bg-danger/10 px-4 py-3 text-sm text-danger">
@@ -371,7 +397,7 @@ export function MetroBookingWizard() {
               </motion.div>
               <h2 className="mt-4 text-2xl font-bold">Ticket Confirmed!</h2>
               <p className="mt-2 text-muted">
-                {BOOKING_TYPE_LABELS[bookingType]} ticket — use PNR to view or cancel
+                {BOOKING_TYPE_LABELS[bookingType]} ticket for {city} — use PNR to view or cancel
               </p>
 
               <div className="mx-auto mt-6 max-w-xs rounded-2xl border border-border bg-card p-6">
@@ -379,6 +405,9 @@ export function MetroBookingWizard() {
                 <p className="mt-2 text-xs uppercase tracking-widest text-muted">PNR Number</p>
                 <p className="mt-1 text-3xl font-black tracking-wider text-primary">
                   {formatPNR(confirmedPNR)}
+                </p>
+                <p className="mt-2 text-sm text-muted">
+                  {ticketCount} ticket{ticketCount !== 1 ? "s" : ""}
                 </p>
                 <Button variant="ghost" size="sm" className="mt-3" onClick={copyPNR}>
                   <Copy className="h-4 w-4" />
