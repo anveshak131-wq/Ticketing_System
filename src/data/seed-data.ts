@@ -40,7 +40,7 @@ export const SEED_TRAINS: Train[] = [
     duration: "15h 40m",
     runsOn: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
     classes: ["1A", "2A", "3A"],
-    baseFares: { "1A": 4850, "2A": 2890, "3A": 1980 },
+    baseFares: { "1A": 7275, "2A": 4335, "3A": 2970 },
     seatCapacity: {
       "1A": { LB: 18 },
       "2A": { UB: 16, MB: 16, LB: 16 },
@@ -68,7 +68,7 @@ export const SEED_TRAINS: Train[] = [
     duration: "17h 05m",
     runsOn: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat"],
     classes: ["1A", "2A", "3A"],
-    baseFares: { "1A": 5120, "2A": 3050, "3A": 2150 },
+    baseFares: { "1A": 7680, "2A": 4575, "3A": 3225 },
     seatCapacity: {
       "1A": { LB: 18 },
       "2A": { UB: 16, MB: 16, LB: 16 },
@@ -95,7 +95,7 @@ export const SEED_TRAINS: Train[] = [
     duration: "34h 10m",
     runsOn: ["Mon", "Wed", "Fri"],
     classes: ["SL", "3A", "2A", "1A"],
-    baseFares: { SL: 720, "3A": 1890, "2A": 2680, "1A": 4520 },
+    baseFares: { SL: 1080, "3A": 2835, "2A": 4020, "1A": 6780 },
     seatCapacity: {
       SL: { UB: 14, MB: 14, LB: 15, SU: 14, SL: 15 },
       "3A": { UB: 21, MB: 21, LB: 22 },
@@ -123,7 +123,7 @@ export const SEED_TRAINS: Train[] = [
     duration: "29h 40m",
     runsOn: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
     classes: ["SL", "3A", "2A", "1A"],
-    baseFares: { SL: 680, "3A": 1750, "2A": 2520, "1A": 4280 },
+    baseFares: { SL: 1020, "3A": 2625, "2A": 3780, "1A": 6420 },
     seatCapacity: {
       SL: { UB: 14, MB: 14, LB: 15, SU: 14, SL: 15 },
       "3A": { UB: 21, MB: 21, LB: 22 },
@@ -150,7 +150,7 @@ export const SEED_TRAINS: Train[] = [
     duration: "4h 25m",
     runsOn: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
     classes: ["CC", "2S"],
-    baseFares: { CC: 920, "2S": 540 },
+    baseFares: { CC: 1380, "2S": 810 },
     seatCapacity: {
       CC: { SEAT: 80 },
       "2S": { SEAT: 100 },
@@ -175,7 +175,7 @@ export const SEED_TRAINS: Train[] = [
     duration: "11h 10m",
     runsOn: ["Mon", "Thu", "Sat"],
     classes: ["SL", "3A", "2A", "1A"],
-    baseFares: { SL: 580, "3A": 1420, "2A": 2180, "1A": 3680 },
+    baseFares: { SL: 870, "3A": 2130, "2A": 3270, "1A": 5520 },
     seatCapacity: {
       SL: { UB: 14, MB: 14, LB: 15, SU: 14, SL: 15 },
       "3A": { UB: 21, MB: 21, LB: 22 },
@@ -207,7 +207,7 @@ export const SEED_TRAINS: Train[] = [
     offPeakFrequencyMinutes: 7,
     runsOn: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
     classes: ["2S"],
-    baseFares: { "2S": 60 },
+    baseFares: { "2S": 90 },
     seatCapacity: { "2S": { SEAT: 200 } },
     schedule: [
       { stationCode: "DMK2", arrival: null, departure: "05:00", day: 1, distance: 0 },
@@ -234,7 +234,7 @@ export const SEED_TRAINS: Train[] = [
     offPeakFrequencyMinutes: 7,
     runsOn: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
     classes: ["2S"],
-    baseFares: { "2S": 50 },
+    baseFares: { "2S": 75 },
     seatCapacity: { "2S": { SEAT: 180 } },
     schedule: [
       { stationCode: "DMK1", arrival: null, departure: "05:00", day: 1, distance: 0 },
@@ -259,7 +259,7 @@ export const SEED_TRAINS: Train[] = [
     offPeakFrequencyMinutes: 8,
     runsOn: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
     classes: ["2S"],
-    baseFares: { "2S": 45 },
+    baseFares: { "2S": 68 },
     seatCapacity: { "2S": { SEAT: 300 } },
     schedule: [
       { stationCode: "MLK1", arrival: null, departure: "04:30", day: 1, distance: 0 },
@@ -286,7 +286,7 @@ export const SEED_TRAINS: Train[] = [
     offPeakFrequencyMinutes: 8,
     runsOn: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
     classes: ["2S"],
-    baseFares: { "2S": 25 },
+    baseFares: { "2S": 38 },
     seatCapacity: { "2S": { SEAT: 250 } },
     schedule: [
       { stationCode: "MLK1", arrival: null, departure: "04:30", day: 1, distance: 0 },
