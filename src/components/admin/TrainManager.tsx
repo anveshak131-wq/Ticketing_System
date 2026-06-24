@@ -7,7 +7,7 @@ import { useCatalog } from "@/hooks/use-catalog";
 import { deleteTrain, saveTrain } from "@/lib/catalog-store";
 import { CLASS_LABELS, type Train, type TrainScheduleStop, type TravelClass } from "@/types";
 import { motion } from "framer-motion";
-import { Pencil, Plus, Trash2 } from "lucide-react";
+import { Pencil, Plus, Search, Trash2 } from "lucide-react";
 import { useState } from "react";
 
 const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
@@ -40,6 +40,7 @@ export function TrainManager() {
   const [form, setForm] = useState<Train>(emptyTrain());
   const [showForm, setShowForm] = useState(false);
   const [error, setError] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
 
   const openCreate = () => {
     setEditingNumber(null);
@@ -182,10 +183,18 @@ export function TrainManager() {
     }
   };
 
+  const filteredTrains = trains.filter(
+    (train) =>
+      train.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      train.number.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className="text-sm text-muted">{trains.length} trains</p>
+        <p className="text-sm text-muted">
+          {filteredTrains.length} of {trains.length} trains
+        </p>
         <Button size="sm" onClick={openCreate}>
           <Plus className="h-4 w-4" />
           Add Train
@@ -451,8 +460,18 @@ export function TrainManager() {
         </motion.div>
       )}
 
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted" />
+        <Input
+          placeholder="Search by train name or number..."
+          className="w-full pl-9"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+        />
+      </div>
+
       <div className="space-y-3">
-        {trains.map((train) => (
+        {filteredTrains.map((train) => (
           <div key={train.number} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-card p-4">
             <div>
               <div className="flex flex-wrap items-center gap-2">
