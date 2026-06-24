@@ -8,6 +8,7 @@ import { CLASS_LABELS, NETWORK_LABELS, type StationNetwork } from "@/types";
 import { motion } from "framer-motion";
 import { ArrowLeftRight, Calendar, Search } from "lucide-react";
 import { useMemo } from "react";
+import { getStationNetwork } from "@/lib/station-utils";
 
 interface SearchFormProps {
   from: string;
@@ -56,7 +57,13 @@ export function SearchForm({
   const filteredStations = useMemo(() => {
     let list = stations;
     if (stationNetwork) {
-      list = list.filter((s) => (s.network ?? "intercity") === stationNetwork);
+      list = list.filter((s) => {
+        const net = getStationNetwork(s);
+        if (stationNetwork === "metro" || stationNetwork === "local") {
+          return net.includes(stationNetwork);
+        }
+        return net === stationNetwork;
+      });
     }
     if (city) {
       list = list.filter((s) => s.city === city);

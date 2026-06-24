@@ -16,7 +16,14 @@ export function filterStationsByNetwork(
   stations: Station[],
   network: StationNetwork
 ): Station[] {
-  return stations.filter((s) => getStationNetwork(s) === network);
+  return stations.filter((s) => {
+    const net = getStationNetwork(s);
+    // Treat specialized metro networks (e.g. 'hyderabad-metro') as part of 'metro'
+    if (network === "metro" || network === "local") {
+      return net.includes(network);
+    }
+    return net === network;
+  });
 }
 
 export function getNetworkCities(
