@@ -14,7 +14,7 @@ export type BerthType = "UB" | "MB" | "LB" | "SU" | "SL" | "SEAT";
 
 export type PricingRuleType = "demand" | "occupancy" | "date_range" | "promotional";
 
-export type FareType = "distance" | "zone" | "flat";
+export type FareType = "distance" | "zone" | "flat" | "station";
 
 export type TrainDirection = "up" | "down" | "both";
 
@@ -301,6 +301,7 @@ export const FARE_TYPE_LABELS: Record<FareType, string> = {
   distance: "Distance-Based",
   zone: "Zone-Based",
   flat: "Flat Rate",
+  station: "Per Station",
 };
 
 export const DIRECTION_LABELS: Record<TrainDirection, string> = {

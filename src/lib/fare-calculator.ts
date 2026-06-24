@@ -1,4 +1,8 @@
 import { getTrainCategory } from "@/lib/station-utils";
+import {
+  calculateUrbanStationFare,
+  countScheduleStations,
+} from "@/lib/urban-fare";
 import type { Train, TrainCategory, TravelClass } from "@/types";
 
 /** Per-km tariff (INR) before class and train-type adjustments */
@@ -98,6 +102,21 @@ export function getFareBreakdown(
   travelDate?: string
 ): FareBreakdown {
   const category = getTrainCategory(train);
+
+  if (category === "metro" || category === "local") {
+    const stationsTraveled = countScheduleStations(train, from, to);
+    const baseFare = calculateUrbanStationFare(stationsTraveled);
+
+    return {
+      distanceKm: getSegmentDistanceKm(train, from, to),
+      category,
+      classMultiplier: 1,
+      trainTypeMultiplier: 1,
+      timeMultiplier: 1,
+      baseFare,
+    };
+  }
+
   const distanceKm = getSegmentDistanceKm(train, from, to);
   const classMultiplier = CLASS_MULTIPLIERS[cls];
   const trainTypeMultiplier = getTrainTypeMultiplier(train.type);

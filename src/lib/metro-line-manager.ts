@@ -8,7 +8,7 @@ export interface MetroLineFormData {
   endStation: string;
   totalDistance: number;
   totalStations: number;
-  fareType: "distance" | "zone" | "flat";
+  fareType: "distance" | "zone" | "flat" | "station";
   baseFare: number;
   farePerKm: number;
 }

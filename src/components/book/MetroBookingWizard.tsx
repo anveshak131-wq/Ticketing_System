@@ -25,7 +25,7 @@ import { MetroLineManager } from "@/lib/metro-line-manager";
 import { MetroFareCalculator } from "@/lib/metro-fare-calculator";
 import { MetroScheduler } from "@/lib/metro-scheduler";
 import type { BookingType, Passenger, Reservation, StationNetwork, TrainSearchResult, MetroLine, LineStation } from "@/types";
-import { BOOKING_TYPE_LABELS, FARE_TYPE_LABELS } from "@/types";
+import { BOOKING_TYPE_LABELS } from "@/types";
 import { getUrbanServiceSummary } from "@/lib/urban-service-schedule";
 import { AnimatePresence, motion } from "framer-motion";
 import { CheckCircle2, Copy, Download, Ticket, Train } from "lucide-react";
@@ -360,12 +360,9 @@ export function MetroBookingWizard() {
             </div>
             {selectedLine && (
               <div className="mt-2 text-sm text-muted">
-                <span className="font-medium">Fare Type:</span> {FARE_TYPE_LABELS[selectedLine.fareType]}
-                {selectedLine.fareType === "distance" && (
-                  <span className="ml-2">Base: ₹{selectedLine.baseFare} + ₹{selectedLine.farePerKm}/km</span>
-                )}
-                {selectedLine.fareType === "flat" && (
-                  <span className="ml-2">Flat Rate: ₹{selectedLine.baseFare}</span>
+                <span className="font-medium">Fare:</span> ₹10 per station traveled
+                {selectedLine.fareType === "station" && selectedLine.baseFare !== 10 && (
+                  <span className="ml-2">(configured: ₹{selectedLine.baseFare}/station)</span>
                 )}
               </div>
             )}

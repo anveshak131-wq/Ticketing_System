@@ -261,6 +261,9 @@ export default function MetroLineManagement() {
                           <p>Distance: {line.totalDistance} km</p>
                           <p>Stations: {line.totalStations}</p>
                           <p>Fare Type: {FARE_TYPE_LABELS[line.fareType]}</p>
+                          {line.fareType === "station" && (
+                            <p>Fare: ₹{line.baseFare} per station</p>
+                          )}
                           {line.fareType === "distance" && (
                             <p>Base Fare: ₹{line.baseFare} + ₹{line.farePerKm}/km</p>
                           )}
@@ -412,8 +415,8 @@ function LineForm({
     endStation: initialLine?.endStation ?? "",
     totalDistance: initialLine?.totalDistance ?? 0,
     totalStations: initialLine?.totalStations ?? 0,
-    fareType: initialLine?.fareType ?? "distance",
-    baseFare: initialLine?.baseFare ?? 0,
+    fareType: initialLine?.fareType ?? "station",
+    baseFare: initialLine?.baseFare ?? 10,
     farePerKm: initialLine?.farePerKm ?? 0,
   });
 
@@ -497,15 +500,21 @@ function LineForm({
         />
         <select
           value={formData.fareType}
-          onChange={(e) => setFormData({ ...formData, fareType: e.target.value as "distance" | "zone" | "flat" })}
+          onChange={(e) =>
+            setFormData({
+              ...formData,
+              fareType: e.target.value as "distance" | "zone" | "flat" | "station",
+            })
+          }
           className="w-full p-2 border rounded"
         >
+          <option value="station">Per Station (₹10 per stop)</option>
           <option value="distance">Distance-Based</option>
           <option value="zone">Zone-Based</option>
           <option value="flat">Flat Rate</option>
         </select>
         <Input
-          label="Base Fare"
+          label={formData.fareType === "station" ? "Fare per Station (₹)" : "Base Fare"}
           type="number"
           value={formData.baseFare}
           onChange={(e) => setFormData({ ...formData, baseFare: parseFloat(e.target.value) })}
