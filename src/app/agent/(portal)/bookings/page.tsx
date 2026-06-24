@@ -3,7 +3,7 @@ import { AuthGuard } from "@/components/auth/AuthGuard";
 
 export default function AgentBookingsPage() {
   return (
-    <AuthGuard role="agent">
+    <AuthGuard role="agent" loginPath="/agent/login">
       <BookingManager />
     </AuthGuard>
   );

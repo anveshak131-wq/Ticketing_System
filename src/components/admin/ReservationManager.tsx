@@ -8,7 +8,7 @@ import { useReservations } from "@/hooks/use-reservations";
 import { deleteReservation, saveReservation } from "@/lib/booking-store";
 import { formatPNR } from "@/lib/pnr";
 import { formatCurrency, formatDate } from "@/lib/utils";
-import { CLASS_LABELS, type Reservation } from "@/types";
+import { CLASS_LABELS, BOOKING_TYPE_LABELS, type Reservation } from "@/types";
 import { motion, AnimatePresence } from "framer-motion";
 import { Pencil, Trash2 } from "lucide-react";
 import { useState } from "react";
@@ -55,6 +55,7 @@ export function ReservationManager() {
               <th className="px-4 py-3 font-medium">PNR</th>
               <th className="px-4 py-3 font-medium">Train</th>
               <th className="px-4 py-3 font-medium">Date</th>
+              <th className="px-4 py-3 font-medium">Type</th>
               <th className="px-4 py-3 font-medium">Channel</th>
               <th className="px-4 py-3 font-medium">Status</th>
               <th className="px-4 py-3 font-medium">Fare</th>
@@ -64,7 +65,7 @@ export function ReservationManager() {
           <tbody>
             {filtered.length === 0 ? (
               <tr>
-                <td colSpan={7} className="px-4 py-8 text-center text-muted">
+                <td colSpan={8} className="px-4 py-8 text-center text-muted">
                   No reservations found
                 </td>
               </tr>
@@ -79,6 +80,11 @@ export function ReservationManager() {
                     <p className="text-xs text-muted">#{r.trainNumber}</p>
                   </td>
                   <td className="px-4 py-3 text-muted">{formatDate(r.travelDate)}</td>
+                  <td className="px-4 py-3">
+                    <Badge variant={r.bookingType === "intercity" ? "default" : "accent"}>
+                      {BOOKING_TYPE_LABELS[r.bookingType ?? "intercity"]}
+                    </Badge>
+                  </td>
                   <td className="px-4 py-3">
                     <Badge variant={r.bookingChannel === "agent" ? "warning" : "default"}>
                       {r.bookingChannel}

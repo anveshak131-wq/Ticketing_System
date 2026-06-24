@@ -2,25 +2,35 @@
 
 import { getStations, getTrains, getStation, getStationLabel } from "@/lib/catalog-store";
 import { calculateDynamicPrice } from "@/lib/pricing-engine";
+import { calculateRouteFare } from "@/lib/segment-fare";
+import { getTrainCategory } from "@/lib/station-utils";
 import { buildSeatInventory } from "@/lib/seat-availability";
 import {
   calculateOccupancyRate,
   getAvailableSeats,
   getAvailableSeatsByBerth,
 } from "@/lib/seat-management";
-import type { Reservation, TrainSearchResult, TravelClass } from "@/types";
+import type { Reservation, TrainCategory, TrainSearchResult, TravelClass } from "@/types";
+
+export interface TrainSearchOptions {
+  category?: TrainCategory;
+}
 
 export function searchTrains(
   from: string,
   to: string,
   date: string,
-  reservations: Reservation[] = []
+  reservations: Reservation[] = [],
+  options?: TrainSearchOptions
 ): TrainSearchResult[] {
   const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
   const dayOfWeek = dayNames[new Date(date + "T12:00:00").getDay()];
 
   return getTrains()
     .filter((train) => {
+      if (options?.category && getTrainCategory(train) !== options.category) {
+        return false;
+      }
       const fromIdx = train.schedule.findIndex((s) => s.stationCode === from);
       const toIdx = train.schedule.findIndex((s) => s.stationCode === to);
       if (fromIdx === -1 || toIdx === -1 || fromIdx >= toIdx) return false;
@@ -36,13 +46,13 @@ export function searchTrains(
 
       for (const cls of train.classes) {
         const inventory = buildSeatInventory(train, cls, date, reservations);
-        const baseFare = train.baseFares[cls] ?? 0;
+        const routeFare = calculateRouteFare(train, from, to, cls);
         const occupancyRate = calculateOccupancyRate(inventory);
 
         availableSeats[cls] = getAvailableSeats(inventory);
         availableBerths[cls] = getAvailableSeatsByBerth(inventory);
-        fare[cls] = baseFare;
-        dynamicPrice[cls] = calculateDynamicPrice(baseFare, occupancyRate);
+        fare[cls] = routeFare;
+        dynamicPrice[cls] = calculateDynamicPrice(routeFare, occupancyRate);
         occupancyRateByClass[cls] = occupancyRate;
         waitlistCount += inventory.reduce((sum, item) => sum + item.waitlisted, 0);
       }

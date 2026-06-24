@@ -18,7 +18,7 @@ import {
 import { formatPNR, isValidPNR } from "@/lib/pnr";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import type { Passenger, Reservation } from "@/types";
-import { BERTH_PREFERENCE_LABELS, CLASS_LABELS } from "@/types";
+import { BERTH_PREFERENCE_LABELS, BOOKING_TYPE_LABELS, CLASS_LABELS } from "@/types";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   AlertTriangle,
@@ -167,17 +167,22 @@ function ReservationsContent() {
                       {formatPNR(reservation.pnr)}
                     </p>
                   </div>
-                  <Badge
-                    variant={
-                      reservation.status === "confirmed"
-                        ? "success"
-                        : reservation.status === "cancelled"
-                          ? "danger"
-                          : "warning"
-                    }
-                  >
-                    {reservation.status.charAt(0).toUpperCase() + reservation.status.slice(1)}
-                  </Badge>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Badge
+                      variant={
+                        reservation.status === "confirmed"
+                          ? "success"
+                          : reservation.status === "cancelled"
+                            ? "danger"
+                            : "warning"
+                      }
+                    >
+                      {reservation.status.charAt(0).toUpperCase() + reservation.status.slice(1)}
+                    </Badge>
+                    <Badge variant="accent">
+                      {BOOKING_TYPE_LABELS[reservation.bookingType ?? "intercity"]}
+                    </Badge>
+                  </div>
                 </div>
 
                 <div className="mt-6 grid gap-4 sm:grid-cols-2">

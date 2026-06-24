@@ -17,6 +17,7 @@ CREATE TABLE IF NOT EXISTS stations (
   name TEXT NOT NULL,
   city TEXT NOT NULL,
   state TEXT NOT NULL,
+  network TEXT NOT NULL DEFAULT 'intercity' CHECK (network IN ('intercity', 'metro', 'local')),
   created_at TEXT DEFAULT (datetime('now')),
   updated_at TEXT DEFAULT (datetime('now'))
 );
@@ -25,6 +26,7 @@ CREATE TABLE IF NOT EXISTS trains (
   number TEXT PRIMARY KEY,
   name TEXT NOT NULL,
   type TEXT NOT NULL,
+  category TEXT NOT NULL DEFAULT 'intercity' CHECK (category IN ('intercity', 'metro', 'local')),
   source_code TEXT NOT NULL REFERENCES stations(code),
   destination_code TEXT NOT NULL REFERENCES stations(code),
   departure_time TEXT NOT NULL,
@@ -51,6 +53,7 @@ CREATE TABLE IF NOT EXISTS train_schedule (
 
 CREATE TABLE IF NOT EXISTS reservations (
   pnr TEXT PRIMARY KEY,
+  booking_type TEXT NOT NULL DEFAULT 'intercity' CHECK (booking_type IN ('intercity', 'metro', 'local')),
   train_number TEXT NOT NULL REFERENCES trains(number),
   from_station TEXT NOT NULL REFERENCES stations(code),
   to_station TEXT NOT NULL REFERENCES stations(code),

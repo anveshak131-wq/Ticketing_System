@@ -125,8 +125,13 @@ export default function AboutPage() {
             <div className="mt-10 flex flex-wrap items-center justify-center gap-4">
               <Link href="/book" className="hero-cta">
                 <Button size="lg" variant="secondary">
-                  Start Booking
+                  Book Intercity
                   <ArrowRight className="h-4 w-4" />
+                </Button>
+              </Link>
+              <Link href="/metro" className="hero-cta">
+                <Button size="lg" variant="outline">
+                  Metro / Local Ticket
                 </Button>
               </Link>
               <Link href="/reservations" className="hero-cta">

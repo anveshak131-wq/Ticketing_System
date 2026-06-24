@@ -5,12 +5,13 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { useCatalog } from "@/hooks/use-catalog";
 import { deleteStation, saveStation } from "@/lib/catalog-store";
-import type { Station } from "@/types";
+import type { Station, StationNetwork } from "@/types";
+import { NETWORK_LABELS } from "@/types";
 import { motion } from "framer-motion";
 import { Pencil, Plus, Trash2, Check, AlertCircle } from "lucide-react";
 import { useState } from "react";
 
-const emptyStation: Station = { code: "", name: "", city: "", state: "" };
+const emptyStation: Station = { code: "", name: "", city: "", state: "", network: "intercity" };
 
 export function StationManager() {
   const { stations } = useCatalog();
@@ -160,6 +161,23 @@ export function StationManager() {
               onChange={(e) => setForm({ ...form, state: e.target.value })}
               disabled={isSaving}
             />
+            <div>
+              <label className="mb-1.5 block text-sm font-medium">Network</label>
+              <select
+                value={form.network ?? "intercity"}
+                onChange={(e) =>
+                  setForm({ ...form, network: e.target.value as StationNetwork })
+                }
+                disabled={isSaving}
+                className="w-full rounded-xl border border-border bg-card px-4 py-2.5"
+              >
+                {(Object.keys(NETWORK_LABELS) as StationNetwork[]).map((network) => (
+                  <option key={network} value={network}>
+                    {NETWORK_LABELS[network]}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
           {error && (
             <div className="mt-3 flex items-center gap-2 rounded-lg bg-red-500/10 p-3">
@@ -196,6 +214,7 @@ export function StationManager() {
               <th className="px-4 py-3 font-medium">Code</th>
               <th className="px-4 py-3 font-medium">Name</th>
               <th className="px-4 py-3 font-medium">City</th>
+              <th className="px-4 py-3 font-medium">Network</th>
               <th className="px-4 py-3 font-medium">State</th>
               <th className="px-4 py-3 font-medium">Actions</th>
             </tr>
@@ -208,6 +227,11 @@ export function StationManager() {
                 </td>
                 <td className="px-4 py-3">{station.name}</td>
                 <td className="px-4 py-3 text-muted">{station.city}</td>
+                <td className="px-4 py-3">
+                  <Badge variant={station.network === "intercity" ? "default" : "accent"}>
+                    {NETWORK_LABELS[station.network ?? "intercity"]}
+                  </Badge>
+                </td>
                 <td className="px-4 py-3 text-muted">{station.state}</td>
                 <td className="px-4 py-3">
                   <div className="flex gap-1">

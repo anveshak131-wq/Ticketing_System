@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { useCatalog } from "@/hooks/use-catalog";
 import { deleteTrain, saveTrain } from "@/lib/catalog-store";
-import { CLASS_LABELS, type Train, type TrainScheduleStop, type TravelClass } from "@/types";
+import { CLASS_LABELS, NETWORK_LABELS, type Train, type TrainCategory, type TrainScheduleStop, type TravelClass } from "@/types";
 import { motion } from "framer-motion";
 import { Pencil, Plus, Search, Trash2 } from "lucide-react";
 import { useState } from "react";
@@ -18,6 +18,7 @@ function emptyTrain(): Train {
     number: "",
     name: "",
     type: "Superfast",
+    category: "intercity",
     source: "NDLS",
     destination: "BCT",
     departureTime: "06:00",
@@ -189,6 +190,11 @@ export function TrainManager() {
       train.number.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
+  const formStations = stations.filter((s) => {
+    const network = form.category ?? "intercity";
+    return (s.network ?? "intercity") === network;
+  });
+
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -214,6 +220,22 @@ export function TrainManager() {
             <Input label="Train Name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
             <Input label="Type" value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })} />
             <div>
+              <label className="mb-1.5 block text-sm font-medium">Category</label>
+              <select
+                value={form.category ?? "intercity"}
+                onChange={(e) =>
+                  setForm({ ...form, category: e.target.value as TrainCategory })
+                }
+                className="w-full rounded-xl border border-border bg-card px-4 py-2.5"
+              >
+                {(Object.keys(NETWORK_LABELS) as TrainCategory[]).map((category) => (
+                  <option key={category} value={category}>
+                    {NETWORK_LABELS[category]}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
               <label className="mb-1.5 block text-sm font-medium">Source</label>
               <select 
                 value={form.source} 
@@ -227,7 +249,7 @@ export function TrainManager() {
                 }} 
                 className="w-full rounded-xl border border-border bg-card px-4 py-2.5"
               >
-                {stations.map((s) => <option key={s.code} value={s.code}>{s.name} ({s.code})</option>)}
+                {formStations.map((s) => <option key={s.code} value={s.code}>{s.name} ({s.code})</option>)}
               </select>
             </div>
             <div>
@@ -245,7 +267,7 @@ export function TrainManager() {
                 className="w-full rounded-xl border border-border bg-card px-4 py-2.5"
               >
                 <option value="" disabled>Select destination...</option>
-                {stations.map((s) => <option key={s.code} value={s.code}>{s.name} ({s.code})</option>)}
+                {formStations.map((s) => <option key={s.code} value={s.code}>{s.name} ({s.code})</option>)}
               </select>
             </div>
             <Input label="Duration" value={form.duration} onChange={(e) => setForm({ ...form, duration: e.target.value })} />
@@ -348,7 +370,7 @@ export function TrainManager() {
                           className="w-full rounded-lg border border-border bg-card px-3 py-2 text-sm font-medium"
                         >
                           <option value="" disabled>Select station...</option>
-                          {stations.map((s) => (
+                          {formStations.map((s) => (
                             <option key={s.code} value={s.code}>
                               {s.code} - {s.name}
                             </option>
@@ -478,6 +500,9 @@ export function TrainManager() {
                 <Badge variant="accent">{train.number}</Badge>
                 <span className="font-semibold">{train.name}</span>
                 <Badge>{train.type}</Badge>
+                <Badge variant="default">
+                  {NETWORK_LABELS[train.category ?? "intercity"]}
+                </Badge>
               </div>
               <p className="mt-1 text-sm text-muted">
                 {train.source} → {train.destination} · {train.departureTime}–{train.arrivalTime} · {train.schedule.length} stops

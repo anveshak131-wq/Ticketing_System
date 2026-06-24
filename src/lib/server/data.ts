@@ -1,10 +1,47 @@
 import { SEED_STATIONS, SEED_TRAINS, SEED_USERS } from "@/data/seed-data";
 import { KV_KEYS, kvGet, kvPut } from "@/lib/server/kv";
+import { getStationNetwork, getTrainCategory } from "@/lib/station-utils";
 import type { Reservation, Station, Train, User, SeatInventory, WaitlistEntry, PricingRule } from "@/types";
 
 export interface Catalog {
   stations: Station[];
   trains: Train[];
+}
+
+function normalizeCatalog(catalog: Catalog): Catalog {
+  return {
+    stations: catalog.stations.map((s) => ({
+      ...s,
+      network: getStationNetwork(s),
+    })),
+    trains: catalog.trains.map((t) => ({
+      ...t,
+      category: getTrainCategory(t),
+    })),
+  };
+}
+
+function mergeUrbanSeed(catalog: Catalog): Catalog {
+  const next = { ...catalog, stations: [...catalog.stations], trains: [...catalog.trains] };
+
+  for (const station of SEED_STATIONS) {
+    if (getStationNetwork(station) === "intercity") continue;
+    const existing = next.stations.find((s) => s.code === station.code);
+    if (!existing) {
+      next.stations.push(station);
+    }
+  }
+
+  for (const train of SEED_TRAINS) {
+    if (getTrainCategory(train) === "intercity") continue;
+    if (!next.trains.some((t) => t.number === train.number)) {
+      next.trains.push(train);
+    }
+  }
+
+  next.stations.sort((a, b) => a.code.localeCompare(b.code));
+  next.trains.sort((a, b) => a.number.localeCompare(b.number));
+  return next;
 }
 
 export async function ensureSeeded(): Promise<void> {
@@ -27,7 +64,15 @@ export async function ensureSeeded(): Promise<void> {
 
 export async function getCatalog(): Promise<Catalog> {
   await ensureSeeded();
-  return (await kvGet<Catalog>(KV_KEYS.catalog))!;
+  let catalog = normalizeCatalog((await kvGet<Catalog>(KV_KEYS.catalog))!);
+
+  const needsUrbanSeed = !catalog.stations.some((s) => s.network === "metro");
+  if (needsUrbanSeed) {
+    catalog = mergeUrbanSeed(catalog);
+    await saveCatalog(catalog);
+  }
+
+  return catalog;
 }
 
 export async function saveCatalog(catalog: Catalog): Promise<void> {
@@ -45,6 +90,7 @@ export async function getReservations(): Promise<Reservation[]> {
   return list.map((r) => ({
     ...r,
     bookingChannel: r.bookingChannel ?? "public",
+    bookingType: r.bookingType ?? "intercity",
   }));
 }
 
@@ -57,6 +103,7 @@ export async function upsertReservation(reservation: Reservation): Promise<Reser
   const normalized = {
     ...reservation,
     bookingChannel: reservation.bookingChannel ?? "public",
+    bookingType: reservation.bookingType ?? "intercity",
   };
   const index = list.findIndex((r) => r.pnr === normalized.pnr);
   if (index >= 0) {

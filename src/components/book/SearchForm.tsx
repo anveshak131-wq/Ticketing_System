@@ -3,7 +3,8 @@
 import { useCatalog } from "@/hooks/use-catalog";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
-import { CLASS_LABELS, type TravelClass } from "@/types";
+import type { TravelClass } from "@/types";
+import { CLASS_LABELS, NETWORK_LABELS, type StationNetwork } from "@/types";
 import { motion } from "framer-motion";
 import { ArrowLeftRight, Calendar, Search } from "lucide-react";
 import { useMemo } from "react";
@@ -19,6 +20,8 @@ interface SearchFormProps {
   onClassChange: (v: TravelClass) => void;
   onSearch: () => void;
   loading?: boolean;
+  stationNetwork?: StationNetwork;
+  searchLabel?: string;
 }
 
 export function SearchForm({
@@ -32,9 +35,16 @@ export function SearchForm({
   onClassChange,
   onSearch,
   loading,
+  stationNetwork,
+  searchLabel = "Search Trains",
 }: SearchFormProps) {
   const { stations } = useCatalog();
   const minDate = useMemo(() => new Date().toISOString().split("T")[0], []);
+
+  const filteredStations = useMemo(() => {
+    if (!stationNetwork) return stations;
+    return stations.filter((s) => (s.network ?? "intercity") === stationNetwork);
+  }, [stations, stationNetwork]);
 
   const swapStations = () => {
     onFromChange(to);
@@ -47,6 +57,11 @@ export function SearchForm({
       animate={{ opacity: 1, y: 0 }}
       className="rounded-2xl border border-border bg-card p-6 shadow-sm"
     >
+      {stationNetwork && (
+        <p className="mb-4 text-sm text-muted">
+          {NETWORK_LABELS[stationNetwork]} stations configured by admin
+        </p>
+      )}
       <div className="grid gap-4 sm:grid-cols-2">
         <div>
           <label className="mb-1.5 block text-sm font-medium">From Station</label>
@@ -56,7 +71,7 @@ export function SearchForm({
             className="w-full rounded-xl border border-border bg-card px-4 py-2.5 outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
           >
             <option value="">Select station</option>
-            {stations.map((s) => (
+            {filteredStations.map((s) => (
               <option key={s.code} value={s.code}>
                 {s.name} ({s.code})
               </option>
@@ -72,7 +87,7 @@ export function SearchForm({
             className="w-full rounded-xl border border-border bg-card px-4 py-2.5 outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
           >
             <option value="">Select station</option>
-            {stations.map((s) => (
+            {filteredStations.map((s) => (
               <option key={s.code} value={s.code}>
                 {s.name} ({s.code})
               </option>
@@ -96,20 +111,28 @@ export function SearchForm({
           onChange={(e) => onDateChange(e.target.value)}
         />
 
-        <div>
-          <label className="mb-1.5 block text-sm font-medium">Class</label>
-          <select
-            value={travelClass}
-            onChange={(e) => onClassChange(e.target.value as TravelClass)}
-            className="w-full rounded-xl border border-border bg-card px-4 py-2.5 outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
-          >
-            {(Object.keys(CLASS_LABELS) as TravelClass[]).map((cls) => (
-              <option key={cls} value={cls}>
-                {CLASS_LABELS[cls]}
-              </option>
-            ))}
-          </select>
-        </div>
+        {!stationNetwork || stationNetwork === "intercity" ? (
+          <div>
+            <label className="mb-1.5 block text-sm font-medium">Class</label>
+            <select
+              value={travelClass}
+              onChange={(e) => onClassChange(e.target.value as TravelClass)}
+              className="w-full rounded-xl border border-border bg-card px-4 py-2.5 outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
+            >
+              {(Object.keys(CLASS_LABELS) as TravelClass[]).map((cls) => (
+                <option key={cls} value={cls}>
+                  {CLASS_LABELS[cls]}
+                </option>
+              ))}
+            </select>
+          </div>
+        ) : (
+          <div className="flex items-end">
+            <p className="text-sm text-muted">
+              Standard class ticket — fare calculated by distance along the route
+            </p>
+          </div>
+        )}
       </div>
 
       <Button
@@ -122,7 +145,7 @@ export function SearchForm({
         ) : (
           <>
             <Search className="h-4 w-4" />
-            Search Trains
+            {searchLabel}
           </>
         )}
       </Button>

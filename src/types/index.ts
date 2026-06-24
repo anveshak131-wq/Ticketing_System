@@ -1,5 +1,11 @@
 export type TravelClass = "SL" | "3A" | "2A" | "1A" | "CC" | "2S";
 
+export type StationNetwork = "intercity" | "metro" | "local";
+
+export type TrainCategory = "intercity" | "metro" | "local";
+
+export type BookingType = "intercity" | "metro" | "local";
+
 export type ReservationStatus = "confirmed" | "cancelled" | "modified" | "waitlisted";
 
 export type BerthPreference = "LB" | "MB" | "UB" | "SL" | "SU" | "none";
@@ -13,6 +19,7 @@ export interface Station {
   name: string;
   city: string;
   state: string;
+  network?: StationNetwork;
 }
 
 export interface TrainScheduleStop {
@@ -52,6 +59,7 @@ export interface Train {
   number: string;
   name: string;
   type: string;
+  category?: TrainCategory;
   source: string;
   destination: string;
   departureTime: string;
@@ -100,6 +108,7 @@ export interface AuthSession {
 
 export interface Reservation {
   pnr: string;
+  bookingType?: BookingType;
   trainNumber: string;
   trainName: string;
   fromStation: string;
@@ -190,6 +199,18 @@ export const BERTH_LABELS: Record<BerthType, string> = {
   SU: "Side Upper",
   SL: "Side Lower",
   SEAT: "Seat",
+};
+
+export const NETWORK_LABELS: Record<StationNetwork, string> = {
+  intercity: "Intercity",
+  metro: "Metro",
+  local: "Local Train",
+};
+
+export const BOOKING_TYPE_LABELS: Record<BookingType, string> = {
+  intercity: "Intercity",
+  metro: "Metro",
+  local: "Local Train",
 };
 
 export const BERTH_PREFERENCE_LABELS: Record<BerthPreference, string> = {
