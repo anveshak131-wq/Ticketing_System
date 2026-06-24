@@ -1,4 +1,118 @@
-import type { Station, Train, User, MetroLine, LineStation } from "@/types";
+import type { Station, Train, User, MetroLine, LineStation, TrainScheduleStop } from "@/types";
+
+const EVERY_DAY = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+const HYDERABAD_RED_LINE_ID = 5;
+const HYDERABAD_RED_LINE_DISTANCE_KM = 29.21;
+const HYDERABAD_RED_LINE_STOPS: Array<Pick<Station, "code" | "name">> = [
+  { code: "HMR01", name: "Miyapur" },
+  { code: "HMR02", name: "J.N.T.U College" },
+  { code: "HMR03", name: "K.P.H.B. Colony" },
+  { code: "HMR04", name: "Kukatpally" },
+  { code: "HMR05", name: "Balanagar" },
+  { code: "HMR06", name: "Moosapet" },
+  { code: "HMR07", name: "Bharat Nagar" },
+  { code: "HMR08", name: "Erragadda" },
+  { code: "HMR09", name: "ESI Hospital" },
+  { code: "HMR10", name: "S.R Nagar" },
+  { code: "HMR11", name: "Ameerpet" },
+  { code: "HMR12", name: "Punjagutta" },
+  { code: "HMR13", name: "Irrum Manzil" },
+  { code: "HMR14", name: "Khairatabad" },
+  { code: "HMR15", name: "Lakdi-ka-pul" },
+  { code: "HMR16", name: "Assembly" },
+  { code: "HMR17", name: "Nampally" },
+  { code: "HMR18", name: "Gandhi Bhavan" },
+  { code: "HMR19", name: "Osmania Medical College" },
+  { code: "HMR20", name: "M.G. Bus Station" },
+  { code: "HMR21", name: "Malakpet" },
+  { code: "HMR22", name: "New Market" },
+  { code: "HMR23", name: "Musarambagh" },
+  { code: "HMR24", name: "Dilsukhnagar" },
+  { code: "HMR25", name: "Chaitanyapuri" },
+  { code: "HMR26", name: "Victoria Memorial" },
+  { code: "HMR27", name: "L.B. Nagar" },
+];
+
+function minutesToTime(totalMinutes: number): string {
+  const minutesInDay = 24 * 60;
+  const normalized = ((totalMinutes % minutesInDay) + minutesInDay) % minutesInDay;
+  const hours = Math.floor(normalized / 60);
+  const minutes = normalized % 60;
+  return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`;
+}
+
+function timeToMinutes(time: string): number {
+  const [hours, minutes] = time.split(":").map(Number);
+  return (hours ?? 0) * 60 + (minutes ?? 0);
+}
+
+function getHyderabadRedLineDistance(stopIndex: number): number {
+  const segmentDistance = HYDERABAD_RED_LINE_DISTANCE_KM / (HYDERABAD_RED_LINE_STOPS.length - 1);
+  return Number((stopIndex * segmentDistance).toFixed(2));
+}
+
+function buildHyderabadRedLineSchedule(
+  stationCodes: string[],
+  firstDeparture: string
+): TrainScheduleStop[] {
+  const baseMinutes = timeToMinutes(firstDeparture);
+  const lastIndex = stationCodes.length - 1;
+
+  return stationCodes.map((stationCode, index) => {
+    const stopMinutes = baseMinutes + index * 2;
+    return {
+      stationCode,
+      arrival: index === 0 ? null : minutesToTime(stopMinutes),
+      departure: index === lastIndex ? null : minutesToTime(index === 0 ? stopMinutes : stopMinutes + 1),
+      day: 1,
+      distance: getHyderabadRedLineDistance(index),
+    };
+  });
+}
+
+function createHyderabadRedLineTrain(direction: "up" | "down"): Train {
+  const stationCodes = HYDERABAD_RED_LINE_STOPS.map((station) => station.code);
+  const route = direction === "up" ? stationCodes : [...stationCodes].reverse();
+  const source = route[0];
+  const destination = route[route.length - 1];
+  const departureTime = "06:30";
+  const durationMinutes = (route.length - 1) * 2;
+
+  return {
+    number: direction === "up" ? "HMRL-RU" : "HMRL-RD",
+    name:
+      direction === "up"
+        ? "Hyderabad Metro Red Line (Miyapur to L.B. Nagar)"
+        : "Hyderabad Metro Red Line (L.B. Nagar to Miyapur)",
+    type: "Metro",
+    category: "metro",
+    lineId: HYDERABAD_RED_LINE_ID,
+    direction,
+    source,
+    destination,
+    departureTime,
+    arrivalTime: minutesToTime(timeToMinutes(departureTime) + durationMinutes),
+    duration: `${durationMinutes}m`,
+    firstService: "06:30",
+    lastService: "22:30",
+    sundayFirstService: "06:30",
+    peakFrequencyMinutes: 5,
+    offPeakFrequencyMinutes: 10,
+    runsOn: [...EVERY_DAY],
+    classes: ["2S"],
+    baseFares: { "2S": 10 },
+    seatCapacity: { "2S": { SEAT: 300 } },
+    minGroupSize: 1,
+    maxGroupSize: 100,
+    groupDiscount: 0,
+    schedule: buildHyderabadRedLineSchedule(route, departureTime),
+  };
+}
+
+const HYDERABAD_RED_LINE_TRAINS: Train[] = [
+  createHyderabadRedLineTrain("up"),
+  createHyderabadRedLineTrain("down"),
+];
 
 export const SEED_STATIONS: Station[] = [
   { code: "NDLS", name: "New Delhi", city: "Delhi", state: "Delhi", network: "intercity" },
@@ -13,12 +127,13 @@ export const SEED_STATIONS: Station[] = [
   { code: "ADI", name: "Ahmedabad Junction", city: "Ahmedabad", state: "Gujarat", network: "intercity" },
   { code: "SC", name: "Secunderabad Jn", city: "Hyderabad", state: "Telangana", network: "intercity" },
   { code: "PUNE", name: "Pune Junction", city: "Pune", state: "Maharashtra", network: "intercity" },
-  // Hyderabad Metro stations
-  { code: "HMK1", name: "Miyapur", city: "Hyderabad", state: "Telangana", network: "hyderabad-metro" },
-  { code: "HMK2", name: "JBS Parade Ground", city: "Hyderabad", state: "Telangana", network: "hyderabad-metro" },
-  { code: "HMK3", name: "MGBS", city: "Hyderabad", state: "Telangana", network: "hyderabad-metro" },
-  { code: "HMK4", name: "Raidurg", city: "Hyderabad", state: "Telangana", network: "hyderabad-metro" },
-  { code: "HMK5", name: "Nagole", city: "Hyderabad", state: "Telangana", network: "hyderabad-metro" },
+  ...HYDERABAD_RED_LINE_STOPS.map((station, index) => ({
+    ...station,
+    city: "Hyderabad",
+    state: "Telangana",
+    network: "hyderabad-metro" as const,
+    isTerminus: index === 0 || index === HYDERABAD_RED_LINE_STOPS.length - 1,
+  })),
 ];
 
 export const SEED_TRAINS: Train[] = [
@@ -1006,6 +1121,7 @@ export const SEED_TRAINS: Train[] = [
       { stationCode: "HMK1", arrival: "00:40", departure: null, day: 1, distance: 12 },
     ],
   },
+  ...HYDERABAD_RED_LINE_TRAINS,
 ];
 
 export const SEED_METRO_LINES: MetroLine[] = [
@@ -1065,6 +1181,20 @@ export const SEED_METRO_LINES: MetroLine[] = [
     farePerKm: 0,
     isActive: true,
   },
+  {
+    id: HYDERABAD_RED_LINE_ID,
+    name: "Hyderabad Red Line",
+    color: "#D71920",
+    network: "metro",
+    startStation: "HMR01",
+    endStation: "HMR27",
+    totalDistance: HYDERABAD_RED_LINE_DISTANCE_KM,
+    totalStations: HYDERABAD_RED_LINE_STOPS.length,
+    fareType: "station",
+    baseFare: 10,
+    farePerKm: 0,
+    isActive: true,
+  },
 ];
 
 export const SEED_LINE_STATIONS: LineStation[] = [
@@ -1084,6 +1214,14 @@ export const SEED_LINE_STATIONS: LineStation[] = [
   { id: 401, lineId: 4, stationCode: "MLK1", stopOrder: 1, distanceFromStart: 0, direction: "both" },
   { id: 402, lineId: 4, stationCode: "MLK2", stopOrder: 2, distanceFromStart: 12, direction: "both" },
   { id: 403, lineId: 4, stationCode: "MLK3", stopOrder: 3, distanceFromStart: 22, direction: "both" },
+  ...HYDERABAD_RED_LINE_STOPS.map((station, index) => ({
+    id: 501 + index,
+    lineId: HYDERABAD_RED_LINE_ID,
+    stationCode: station.code,
+    stopOrder: index + 1,
+    distanceFromStart: getHyderabadRedLineDistance(index),
+    direction: "both" as const,
+  })),
 ];
 
 export const SEED_USERS: User[] = [

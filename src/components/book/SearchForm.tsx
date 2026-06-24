@@ -26,6 +26,7 @@ interface SearchFormProps {
   city?: string;
   cities?: string[];
   onCityChange?: (city: string) => void;
+  stationCodes?: string[];
   travelTime?: string;
   onTravelTimeChange?: (time: string) => void;
   serviceSummary?: string;
@@ -47,6 +48,7 @@ export function SearchForm({
   city,
   cities,
   onCityChange,
+  stationCodes,
   travelTime,
   onTravelTimeChange,
   serviceSummary,
@@ -68,8 +70,14 @@ export function SearchForm({
     if (city) {
       list = list.filter((s) => s.city === city);
     }
+    if (stationCodes?.length) {
+      const stationOrder = new Map(stationCodes.map((code, index) => [code, index]));
+      list = list
+        .filter((s) => stationOrder.has(s.code))
+        .sort((a, b) => (stationOrder.get(a.code) ?? 0) - (stationOrder.get(b.code) ?? 0));
+    }
     return list;
-  }, [stations, stationNetwork, city]);
+  }, [stations, stationNetwork, city, stationCodes]);
 
   const swapStations = () => {
     onFromChange(to);

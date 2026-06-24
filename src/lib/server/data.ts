@@ -84,8 +84,20 @@ export async function getCatalog(): Promise<Catalog> {
   await ensureSeeded();
   let catalog = normalizeCatalog((await kvGet<Catalog>(KV_KEYS.catalog))!);
 
+  const urbanSeedStations = SEED_STATIONS.filter(
+    (station) => getStationNetwork(station) !== "intercity"
+  );
+  const urbanSeedTrains = SEED_TRAINS.filter(
+    (train) => getTrainCategory(train) !== "intercity"
+  );
   const needsUrbanSeed =
-    !catalog.stations.some((s) => s.network === "metro") ||
+    !catalog.stations.some((s) => getStationNetwork(s).includes("metro")) ||
+    urbanSeedStations.some(
+      (station) => !catalog.stations.some((existing) => existing.code === station.code)
+    ) ||
+    urbanSeedTrains.some(
+      (train) => !catalog.trains.some((existing) => existing.number === train.number)
+    ) ||
     catalog.trains.some(
       (train) =>
         getTrainCategory(train) !== "intercity" &&
@@ -227,11 +239,61 @@ export async function deletePricingRule(ruleId: string): Promise<boolean> {
 }
 
 async function ensureMetroSeeded(): Promise<void> {
-  const lines = await kvGet<MetroLine[]>(KV_KEYS.metroLines);
-  if (!lines || lines.length === 0) {
-    await kvPut(KV_KEYS.metroLines, SEED_METRO_LINES);
-    await kvPut(KV_KEYS.lineStations, SEED_LINE_STATIONS);
+  const existingLines = (await kvGet<MetroLine[]>(KV_KEYS.metroLines)) ?? [];
+  const nextLines = [...existingLines];
+  const seedLineIdMap = new Map<number, number>();
+  const replaceStationLineIds = new Set<number>();
+  const getAvailableLineId = (preferredId: number) => {
+    if (!nextLines.some((line) => line.id === preferredId)) return preferredId;
+    let nextId = Math.max(preferredId, ...nextLines.map((line) => line.id)) + 1;
+    while (nextLines.some((line) => line.id === nextId)) nextId += 1;
+    return nextId;
+  };
+
+  for (const seedLine of SEED_METRO_LINES) {
+    const existingIndex = nextLines.findIndex((line) => line.name === seedLine.name);
+    const shouldReplace = seedLine.name === "Hyderabad Red Line";
+
+    if (existingIndex === -1) {
+      const lineId = getAvailableLineId(seedLine.id);
+      nextLines.push({ ...seedLine, id: lineId });
+      seedLineIdMap.set(seedLine.id, lineId);
+      if (shouldReplace) replaceStationLineIds.add(lineId);
+      continue;
+    }
+
+    const existingId = nextLines[existingIndex].id;
+    seedLineIdMap.set(seedLine.id, existingId);
+    if (shouldReplace) {
+      nextLines[existingIndex] = { ...seedLine, id: existingId };
+      replaceStationLineIds.add(existingId);
+    }
   }
+
+  const existingLineStations = (await kvGet<LineStation[]>(KV_KEYS.lineStations)) ?? [];
+  const seededLineStations = SEED_LINE_STATIONS.map((station) => ({
+    ...station,
+    lineId: seedLineIdMap.get(station.lineId) ?? station.lineId,
+  }));
+  const nextLineStations = existingLineStations.filter(
+    (station) => !replaceStationLineIds.has(station.lineId)
+  );
+
+  for (const seedStation of seededLineStations) {
+    if (
+      replaceStationLineIds.has(seedStation.lineId) ||
+      !nextLineStations.some(
+        (station) =>
+          station.lineId === seedStation.lineId &&
+          station.stationCode === seedStation.stationCode
+      )
+    ) {
+      nextLineStations.push(seedStation);
+    }
+  }
+
+  await kvPut(KV_KEYS.metroLines, nextLines);
+  await kvPut(KV_KEYS.lineStations, nextLineStations);
 }
 
 // Metro Line Functions

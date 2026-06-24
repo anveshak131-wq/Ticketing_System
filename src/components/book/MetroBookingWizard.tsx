@@ -22,8 +22,7 @@ import { calculateTotalFare } from "@/lib/pricing-engine";
 import { buildBerthPreferenceCounts, buildSeatInventory } from "@/lib/seat-availability";
 import { bookSeats } from "@/lib/seat-management";
 import { MetroLineManager } from "@/lib/metro-line-manager";
-import { MetroFareCalculator } from "@/lib/metro-fare-calculator";
-import { MetroScheduler } from "@/lib/metro-scheduler";
+import { MetroFareCalculator, type MetroFareResult } from "@/lib/metro-fare-calculator";
 import type { BookingType, Passenger, Reservation, StationNetwork, TrainSearchResult, MetroLine, LineStation } from "@/types";
 import { BOOKING_TYPE_LABELS } from "@/types";
 import { getUrbanServiceSummary } from "@/lib/urban-service-schedule";
@@ -41,6 +40,14 @@ function createUrbanPassengers(count: number): Passenger[] {
     gender: "other" as const,
     berthPreference: "none" as const,
   }));
+}
+
+interface FareQuote {
+  unitPrice: number;
+  totalFare: number;
+  pricingMultiplier: number;
+  isGroupBooking: boolean;
+  fareBreakdown?: MetroFareResult;
 }
 
 export function MetroBookingWizard() {
@@ -68,14 +75,49 @@ export function MetroBookingWizard() {
   const [selectedLine, setSelectedLine] = useState<MetroLine | null>(null);
   const [lineStations, setLineStations] = useState<LineStation[]>([]);
 
+  const selectedLineStationsInOrder = useMemo(
+    () =>
+      selectedLine
+        ? MetroFareCalculator.getLineStationsInOrder(
+            lineStations.filter((station) => station.lineId === selectedLine.id)
+          )
+        : [],
+    [lineStations, selectedLine]
+  );
+
+  const selectedLineStationCodes = useMemo(
+    () => selectedLineStationsInOrder.map((station) => station.stationCode),
+    [selectedLineStationsInOrder]
+  );
+
+  const resetSearchState = () => {
+    setStep(0);
+    setResults([]);
+    setSelectedTrain(null);
+    setConfirmedPNR(null);
+    setConfirmedSeats([]);
+    setBookingError("");
+    setTicketCount(1);
+  };
+
   const availableCities = useMemo(
     () => getNetworkCities(stations, network),
     [stations, network]
   );
 
   const cityStations = useMemo(
-    () => (city ? filterStationsByNetworkAndCity(stations, network, city) : []),
-    [stations, network, city]
+    () => {
+      if (selectedLineStationCodes.length > 0) {
+        const stationOrder = new Map(
+          selectedLineStationCodes.map((code, index) => [code, index])
+        );
+        return stations
+          .filter((station) => stationOrder.has(station.code))
+          .sort((a, b) => (stationOrder.get(a.code) ?? 0) - (stationOrder.get(b.code) ?? 0));
+      }
+      return city ? filterStationsByNetworkAndCity(stations, network, city) : [];
+    },
+    [stations, network, city, selectedLineStationCodes]
   );
 
   useEffect(() => {
@@ -99,14 +141,8 @@ export function MetroBookingWizard() {
     const toCode = cityStations[cityStations.length - 1].code;
     setFrom(fromCode);
     setTo(toCode);
-    setStep(0);
-    setResults([]);
-    setSelectedTrain(null);
-    setConfirmedPNR(null);
-    setConfirmedSeats([]);
-    setBookingError("");
-    setTicketCount(1);
-  }, [network, city, cityStations]);
+    resetSearchState();
+  }, [network, city, cityStations, selectedLineStationCodes]);
 
   // Load metro lines
   useEffect(() => {
@@ -131,7 +167,7 @@ export function MetroBookingWizard() {
     [ticketCount]
   );
 
-  const fareQuote = useMemo(() => {
+  const fareQuote = useMemo<FareQuote>(() => {
     if (!selectedTrain) {
       return {
         unitPrice: 0,
@@ -191,6 +227,8 @@ export function MetroBookingWizard() {
     setResults(
       searchTrains(from, to, date, reservations, {
         category: bookingType,
+        lineId: selectedLine?.id,
+        lineStationCodes: selectedLineStationCodes,
         preferredTime: travelTime,
         maxResults: 24,
       })
@@ -221,11 +259,37 @@ export function MetroBookingWizard() {
     setStep(2);
   };
 
+  const handleClearLine = () => {
+    setSelectedLine(null);
+    setLineStations([]);
+    resetSearchState();
+  };
+
+  const handleNetworkChange = (value: BookingType) => {
+    setNetwork(value);
+    setSelectedLine(null);
+    setLineStations([]);
+    resetSearchState();
+  };
+
   const handleSelectLine = async (line: MetroLine) => {
     setSelectedLine(line);
     try {
-      const stations = await MetroLineManager.getLineStations(line.id);
-      setLineStations(stations);
+      const stationEntries = await MetroLineManager.getLineStations(line.id);
+      setLineStations(stationEntries);
+      const orderedStations = MetroFareCalculator.getLineStationsInOrder(stationEntries);
+      const firstStationCode = orderedStations[0]?.stationCode;
+      const lastStationCode = orderedStations[orderedStations.length - 1]?.stationCode;
+      const lineCity = stations.find((station) => station.code === firstStationCode)?.city;
+
+      if (lineCity) {
+        setCity(lineCity);
+      }
+      if (firstStationCode && lastStationCode) {
+        setFrom(firstStationCode);
+        setTo(lastStationCode);
+      }
+      resetSearchState();
     } catch (error) {
       console.error("Error loading line stations:", error);
     }
@@ -279,10 +343,10 @@ export function MetroBookingWizard() {
       seats: allocation.bookedSeats,
       // Metro-specific fields
       lineId: selectedLine?.id,
-      distanceKm: (fareQuote as any).fareBreakdown?.distanceKm,
+      distanceKm: fareQuote.fareBreakdown?.distanceKm,
       fareType: selectedLine?.fareType,
-      fromZone: (fareQuote as any).fareBreakdown?.fromZone,
-      toZone: (fareQuote as any).fareBreakdown?.toZone,
+      fromZone: fareQuote.fareBreakdown?.fromZone,
+      toZone: fareQuote.fareBreakdown?.toZone,
     };
 
     await saveReservation(reservation);
@@ -313,7 +377,7 @@ export function MetroBookingWizard() {
             <button
               key={value}
               type="button"
-              onClick={() => setNetwork(value)}
+              onClick={() => handleNetworkChange(value)}
               className={cn(
                 "rounded-xl px-4 py-2 text-sm font-medium transition-colors",
                 network === value
@@ -332,7 +396,7 @@ export function MetroBookingWizard() {
             <label className="mb-2 block text-sm font-medium">Select Metro Line</label>
             <div className="flex flex-wrap gap-2">
               <button
-                onClick={() => setSelectedLine(null)}
+                onClick={handleClearLine}
                 className={cn(
                   "rounded-xl px-4 py-2 text-sm font-medium transition-colors",
                   !selectedLine
@@ -398,6 +462,7 @@ export function MetroBookingWizard() {
                   travelTime={travelTime}
                   onTravelTimeChange={setTravelTime}
                   serviceSummary={getUrbanServiceSummary(bookingType)}
+                  stationCodes={selectedLineStationCodes}
                   searchLabel={
                     network === "metro" ? "Search Metro Services" : "Search Local Trains"
                   }

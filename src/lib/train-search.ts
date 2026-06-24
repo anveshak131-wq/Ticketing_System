@@ -15,6 +15,8 @@ import type { Reservation, Train, TrainCategory, TrainSearchResult, TravelClass 
 
 export interface TrainSearchOptions {
   category?: TrainCategory;
+  lineId?: number;
+  lineStationCodes?: string[];
   /** Show departures from this time onward (metro/local) */
   preferredTime?: string;
   maxResults?: number;
@@ -83,9 +85,19 @@ export function searchTrains(
 ): TrainSearchResult[] {
   const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
   const dayOfWeek = dayNames[new Date(date + "T12:00:00").getDay()];
+  const lineStationCodeSet = options?.lineStationCodes?.length
+    ? new Set(options.lineStationCodes)
+    : null;
 
   const matchingRoutes = getTrains().filter((train) => {
     if (options?.category && getTrainCategory(train) !== options.category) {
+      return false;
+    }
+    if (
+      options?.lineId &&
+      train.lineId !== options.lineId &&
+      !train.schedule.every((stop) => lineStationCodeSet?.has(stop.stationCode))
+    ) {
       return false;
     }
     const fromIdx = train.schedule.findIndex((s) => s.stationCode === from);
