@@ -39,7 +39,7 @@ export class MetroScheduler {
     const peakEnd = config.peakHoursEnd ? this.timeToMinutes(config.peakHoursEnd) : null;
     
     while (currentTime <= endTime) {
-      const isPeak = peakStart && peakEnd && currentTime >= peakStart && currentTime <= peakEnd;
+      const isPeak = !!(peakStart && peakEnd && currentTime >= peakStart && currentTime <= peakEnd);
       const headway = isPeak && config.peakHeadwayMinutes 
         ? config.peakHeadwayMinutes 
         : config.offPeakHeadwayMinutes || config.headwayMinutes;
@@ -212,5 +212,3 @@ export class MetroScheduler {
     };
   }
 }
-
-export { MetroScheduler };

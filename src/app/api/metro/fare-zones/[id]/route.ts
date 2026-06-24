@@ -3,13 +3,14 @@ import { getServerData } from "@/lib/server/data";
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const body = await request.json();
     const data = await getServerData();
     
-    const zoneIndex = data.fareZones?.findIndex((z: any) => z.id === parseInt(params.id));
+    const zoneIndex = data.fareZones?.findIndex((z: any) => z.id === parseInt(id));
     if (zoneIndex === -1 || zoneIndex === undefined) {
       return NextResponse.json({ error: "Fare zone not found" }, { status: 404 });
     }
@@ -29,11 +30,12 @@ export async function PUT(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const data = await getServerData();
-    const zoneIndex = data.fareZones?.findIndex((z: any) => z.id === parseInt(params.id));
+    const zoneIndex = data.fareZones?.findIndex((z: any) => z.id === parseInt(id));
     
     if (zoneIndex === -1 || zoneIndex === undefined) {
       return NextResponse.json({ error: "Fare zone not found" }, { status: 404 });

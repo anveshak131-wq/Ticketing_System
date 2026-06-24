@@ -3,7 +3,7 @@ import MetroLineManagement from "@/components/admin/MetroLineManager";
 
 export default function MetroLinesPage() {
   return (
-    <AuthGuard requiredRole="admin">
+    <AuthGuard role="admin" loginPath="/admin/login">
       <MetroLineManagement />
     </AuthGuard>
   );

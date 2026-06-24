@@ -112,7 +112,11 @@ export function MetroBookingWizard() {
   useEffect(() => {
     const loadMetroLines = async () => {
       try {
-        const lines = await MetroLineManager.getLines(network);
+        if (network === "intercity") {
+          setMetroLines([]);
+          return;
+        }
+        const lines = await MetroLineManager.getLines(network as "metro" | "local");
         setMetroLines(lines);
       } catch (error) {
         console.error("Error loading metro lines:", error);

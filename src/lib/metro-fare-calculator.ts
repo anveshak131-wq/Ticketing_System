@@ -208,5 +208,3 @@ export class MetroFareCalculator {
     });
   }
 }
-
-export { MetroFareCalculator };

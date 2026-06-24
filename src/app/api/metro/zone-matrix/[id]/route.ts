@@ -3,13 +3,14 @@ import { getServerData } from "@/lib/server/data";
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const body = await request.json();
     const data = await getServerData();
     
-    const entryIndex = data.zoneMatrix?.findIndex((z: any) => z.id === parseInt(params.id));
+    const entryIndex = data.zoneMatrix?.findIndex((z: any) => z.id === parseInt(id));
     if (entryIndex === -1 || entryIndex === undefined) {
       return NextResponse.json({ error: "Zone matrix entry not found" }, { status: 404 });
     }
@@ -28,11 +29,12 @@ export async function PUT(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const data = await getServerData();
-    const entryIndex = data.zoneMatrix?.findIndex((z: any) => z.id === parseInt(params.id));
+    const entryIndex = data.zoneMatrix?.findIndex((z: any) => z.id === parseInt(id));
     
     if (entryIndex === -1 || entryIndex === undefined) {
       return NextResponse.json({ error: "Zone matrix entry not found" }, { status: 404 });
